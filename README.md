@@ -1,4 +1,4 @@
-# Bead Pixel Maker（拼豆图生成器）
+# PinBean 拼豆 — 拼豆图生成器
 
 将任意图片转换为拼豆（Perler / Hama / Artkal）像素格子图，供手工爱好者规划拼豆项目使用。
 

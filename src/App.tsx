@@ -247,7 +247,7 @@ export default function App() {
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-4">
           <div>
             <h1 className="text-2xl font-black tracking-tight dark:text-stone-100">
-              Bead Pixel Maker
+              PinBean 拼豆
             </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
               图片转拼豆图，自动统计颜色和数量
