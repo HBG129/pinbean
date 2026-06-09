@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Sun, Moon, Menu, X, User, LogOut, Home, Globe } from "lucide-react";
+import { Sun, Moon, Menu, X, User, Home, Globe } from "lucide-react";
 import { beadColors221 } from "./data/beadColors221";
 import type { BeadGrid } from "./types/bead";
 import {
@@ -32,14 +32,15 @@ import { useAuth } from "./hooks/useAuth";
 import { AuthModal } from "./components/AuthModal";
 import { CommunityFeed } from "./components/CommunityFeed";
 import { PublishModal } from "./components/PublishModal";
+import { ProfilePage } from "./components/ProfilePage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { hasSupabase } from "./lib/supabase";
 import { saveCloudProject } from "./lib/cloudProjects";
 
-type Page = "editor" | "community";
+type Page = "editor" | "community" | "profile";
 
 function AppShell() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [page, setPage] = useState<Page>("editor");
   const [authOpen, setAuthOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -215,18 +216,15 @@ function AppShell() {
             ) : null}
 
             {hasSupabase() && user ? (
-              <div className="flex items-center gap-2">
-                <span className="hidden text-sm font-medium text-stone-600 sm:inline dark:text-stone-300">
-                  {user.email?.split("@")[0]}
+              <button
+                onClick={() => setPage("profile")}
+                className="flex items-center gap-2 rounded-full bg-gradient-to-br from-orange-400 to-rose-400 p-0.5 transition hover:from-orange-500 hover:to-rose-500 active:scale-95"
+                title="个人主页"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-black text-orange-500 dark:bg-stone-800">
+                  {user.email?.[0]?.toUpperCase()}
                 </span>
-                <button
-                  onClick={signOut}
-                  className="flex items-center gap-1 rounded-xl bg-stone-100 px-3 py-2 text-sm text-stone-600 transition hover:bg-red-50 hover:text-red-500 dark:bg-stone-700 dark:text-stone-300 dark:hover:bg-red-900/20"
-                  title="退出登录"
-                >
-                  <LogOut size={15} />
-                </button>
-              </div>
+              </button>
             ) : hasSupabase() ? (
               <button
                 onClick={() => setAuthOpen(true)}
@@ -253,6 +251,13 @@ function AppShell() {
           </div>
         </div>
       </header>
+
+      {/* === PROFILE PAGE === */}
+      {page === "profile" && (
+        <main className="relative z-10 mx-auto max-w-[1200px] px-4 py-8 md:px-6">
+          <ProfilePage />
+        </main>
+      )}
 
       {/* === COMMUNITY PAGE === */}
       {page === "community" && (

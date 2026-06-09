@@ -117,3 +117,59 @@ export async function toggleBookmark(projectId: string) {
     await db().rpc("increment_bookmarks", { project_id: projectId });
   }
 }
+
+/** profile: get user's own projects */
+export async function getUserProjects() {
+  const { data: user } = await supabase!.auth.getUser();
+  if (!user.user) throw new Error("请先登录");
+  const { data, error } = await db()
+    .from("projects")
+    .select("*")
+    .eq("user_id", user.user.id)
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+/** profile: get projects user liked */
+export async function getUserLikedProjects(): Promise<CloudProject[]> {
+  const { data: user } = await supabase!.auth.getUser();
+  if (!user.user) throw new Error("请先登录");
+  const { data: likeRows, error: e1 } = await db()
+    .from("likes")
+    .select("project_id")
+    .eq("user_id", user.user.id);
+  if (e1 || !likeRows?.length) return [];
+  const ids = likeRows.map((r: { project_id: string }) => r.project_id);
+  const { data, error: e2 } = await db()
+    .from("projects")
+    .select("*")
+    .in("id", ids)
+    .order("updated_at", { ascending: false });
+  if (e2) throw e2;
+  return data || [];
+}
+
+/** profile: get projects user bookmarked */
+export async function getUserBookmarkedProjects(): Promise<CloudProject[]> {
+  const { data: user } = await supabase!.auth.getUser();
+  if (!user.user) throw new Error("请先登录");
+  const { data: bmRows, error: e1 } = await db()
+    .from("bookmarks")
+    .select("project_id")
+    .eq("user_id", user.user.id);
+  if (e1 || !bmRows?.length) return [];
+  const ids = bmRows.map((r: { project_id: string }) => r.project_id);
+  const { data, error: e2 } = await db()
+    .from("projects")
+    .select("*")
+    .in("id", ids)
+    .order("updated_at", { ascending: false });
+  if (e2) throw e2;
+  return data || [];
+}
+
+/** get user notification counts */
+export async function getNotificationCounts() {
+  return { likes: 0, comments: 0 };
+}

@@ -17,7 +17,8 @@ export function CommunityFeed({ onCreatePublish }: { onCreatePublish?: () => voi
   const [comments, setComments] = useState<DBComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentText, setCommentText] = useState("");
-  const [replyTo, setReplyTo] = useState<string | null>(null); // parent comment id
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [commentErr, setCommentErr] = useState(""); // parent comment id
 
   /* color map from built-in palette */
   const colorMap = new Map(beadColors221.map((c) => [c.id, c]));
@@ -57,16 +58,21 @@ export function CommunityFeed({ onCreatePublish }: { onCreatePublish?: () => voi
     setExpanded(p);
     setReplyTo(null);
     setCommentText("");
+    setCommentErr("");
     setCommentsLoading(true);
     try {
       const data = await getComments(p.id);
       setComments(data);
-    } catch { setComments([]); }
+    } catch (e: unknown) {
+      setComments([]);
+      setCommentErr(e instanceof Error ? e.message : "加载评论失败");
+    }
     setCommentsLoading(false);
   }
 
   async function handleSubmitComment(parentId?: string) {
     if (!expanded || !commentText.trim() || !user) return;
+    setCommentErr("");
     const text = commentText.trim();
     setCommentText("");
     setReplyTo(null);
@@ -77,7 +83,10 @@ export function CommunityFeed({ onCreatePublish }: { onCreatePublish?: () => voi
       setProjects((prev) =>
         prev.map((p) => (p.id === expanded.id ? { ...p, comments_count: p.comments_count + 1 } : p))
       );
-    } catch { /* ignore */ }
+    } catch (e: unknown) {
+      setCommentErr(e instanceof Error ? e.message : "评论发送失败");
+      setCommentText(text); // restore
+    }
   }
 
   async function handleBookmark(id: string) {
@@ -292,6 +301,9 @@ export function CommunityFeed({ onCreatePublish }: { onCreatePublish?: () => voi
                   <p className="text-center text-sm text-stone-400 dark:text-stone-500">
                     登录后参与评论
                   </p>
+                )}
+                {commentErr && (
+                  <p className="mt-1 text-xs text-red-500">{commentErr}</p>
                 )}
 
                 {/* comment list */}
