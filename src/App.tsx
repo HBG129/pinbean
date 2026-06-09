@@ -283,7 +283,25 @@ function AppShell() {
       )}
 
       {/* === EDITOR PAGE === */}
-      {page === "editor" && (
+      {page === "editor" && (hasSupabase() && !user ? (
+        <main className="relative z-10 mx-auto max-w-[800px] px-4 py-20 md:px-6">
+          <div className="flex flex-col items-center justify-center rounded-3xl bg-white p-12 text-center shadow-sm dark:bg-stone-800">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-rose-400 text-3xl text-white shadow-lg">
+              🔑
+            </div>
+            <h2 className="mt-6 text-2xl font-black dark:text-stone-100">请登录后使用</h2>
+            <p className="mt-2 text-sm text-stone-500 dark:text-stone-400 max-w-sm">
+              登录后才能使用拼豆编辑器、保存作品和发布到社区
+            </p>
+            <button
+              onClick={() => setAuthOpen(true)}
+              className="mt-6 flex items-center gap-2 rounded-2xl bg-orange-500 px-6 py-3 font-bold text-white transition hover:bg-orange-600 active:scale-[0.97]"
+            >
+              <User size={18} /> 登录 / 注册
+            </button>
+          </div>
+        </main>
+      ) : (
         <main className="relative z-10 mx-auto max-w-[1600px] px-4 py-6 md:px-6">
           {/* mobile sidebar overlay */}
           {sidebarOpen && (
@@ -325,7 +343,7 @@ function AppShell() {
             </section>
           </div>
         </main>
-      )}
+      ))}
     </div>
     </ErrorBoundary>
   );
