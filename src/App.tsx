@@ -34,6 +34,7 @@ import { CommunityFeed } from "./components/CommunityFeed";
 import { PublishModal } from "./components/PublishModal";
 import { ProfilePage } from "./components/ProfilePage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { LandingPage } from "./components/LandingPage";
 import { hasSupabase } from "./lib/supabase";
 import { saveCloudProject, getUnreadCount } from "./lib/cloudProjects";
 
@@ -283,25 +284,7 @@ function AppShell() {
       )}
 
       {/* === EDITOR PAGE === */}
-      {page === "editor" && (hasSupabase() && !user ? (
-        <main className="relative z-10 mx-auto max-w-[800px] px-4 py-20 md:px-6">
-          <div className="flex flex-col items-center justify-center rounded-3xl bg-white p-12 text-center shadow-sm dark:bg-stone-800">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-rose-400 text-3xl text-white shadow-lg">
-              🔑
-            </div>
-            <h2 className="mt-6 text-2xl font-black dark:text-stone-100">请登录后使用</h2>
-            <p className="mt-2 text-sm text-stone-500 dark:text-stone-400 max-w-sm">
-              登录后才能使用拼豆编辑器、保存作品和发布到社区
-            </p>
-            <button
-              onClick={() => setAuthOpen(true)}
-              className="mt-6 flex items-center gap-2 rounded-2xl bg-orange-500 px-6 py-3 font-bold text-white transition hover:bg-orange-600 active:scale-[0.97]"
-            >
-              <User size={18} /> 登录 / 注册
-            </button>
-          </div>
-        </main>
-      ) : (
+      {page === "editor" && (
         <main className="relative z-10 mx-auto max-w-[1600px] px-4 py-6 md:px-6">
           {/* mobile sidebar overlay */}
           {sidebarOpen && (
@@ -343,7 +326,7 @@ function AppShell() {
             </section>
           </div>
         </main>
-      ))}
+      )}
     </div>
     </ErrorBoundary>
   );
@@ -353,8 +336,26 @@ export default function App() {
   return (
     <ErrorBoundary>
     <AuthProvider>
-      <AppShell />
+      <AuthGate>
+        <AppShell />
+      </AuthGate>
     </AuthProvider>
     </ErrorBoundary>
   );
+}
+
+/** wraps AppShell to show LandingPage when not logged in */
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f6f3ee] dark:bg-[#1c1a17]">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-stone-300 border-t-orange-500" />
+      </div>
+    );
+  }
+  if (!user && hasSupabase()) {
+    return <LandingPage />;
+  }
+  return <>{children}</>;
 }
