@@ -170,6 +170,40 @@ export async function getUserBookmarkedProjects(): Promise<CloudProject[]> {
 }
 
 /** get user notification counts */
-export async function getNotificationCounts() {
-  return { likes: 0, comments: 0 };
+export async function getUnreadCount(): Promise<number> {
+  const { data: user } = await supabase!.auth.getUser();
+  if (!user.user) return 0;
+  const { count, error } = await db()
+    .from("notifications")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.user.id)
+    .eq("read", false);
+  if (error) return 0;
+  return count ?? 0;
+}
+
+/** get all notifications */
+export async function getNotifications() {
+  const { data: user } = await supabase!.auth.getUser();
+  if (!user.user) throw new Error("请先登录");
+  const { data, error } = await db()
+    .from("notifications")
+    .select("*")
+    .eq("user_id", user.user.id)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return data || [];
+}
+
+/** mark single notification as read */
+export async function markRead(notifId: string) {
+  await db().from("notifications").update({ read: true }).eq("id", notifId);
+}
+
+/** mark all as read */
+export async function markAllRead() {
+  const { data: user } = await supabase!.auth.getUser();
+  if (!user.user) return;
+  await db().from("notifications").update({ read: true }).eq("user_id", user.user.id).eq("read", false);
 }

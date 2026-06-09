@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Sun, Moon, Menu, X, User, Home, Globe } from "lucide-react";
 import { beadColors221 } from "./data/beadColors221";
 import type { BeadGrid } from "./types/bead";
@@ -35,7 +35,7 @@ import { PublishModal } from "./components/PublishModal";
 import { ProfilePage } from "./components/ProfilePage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { hasSupabase } from "./lib/supabase";
-import { saveCloudProject } from "./lib/cloudProjects";
+import { saveCloudProject, getUnreadCount } from "./lib/cloudProjects";
 
 type Page = "editor" | "community" | "profile";
 
@@ -62,8 +62,19 @@ function AppShell() {
   const [projects, setProjects] = useState<LocalProject[]>(() => getLocalProjects());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { dark, toggle: toggleDark } = useDarkMode();
   const grid = gridState.value;
+
+  // poll unread count
+  useEffect(() => {
+    if (!user || !hasSupabase()) return;
+    getUnreadCount().then(setUnreadCount).catch(() => {});
+    const interval = setInterval(() => {
+      getUnreadCount().then(setUnreadCount).catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const colorMap = useMemo(() => new Map(palette.map((c) => [c.id, c])), [palette]);
   const stats = useMemo(() => (grid ? getColorStats(grid, palette) : []), [grid, palette]);
@@ -218,12 +229,17 @@ function AppShell() {
             {hasSupabase() && user ? (
               <button
                 onClick={() => setPage("profile")}
-                className="flex items-center gap-2 rounded-full bg-gradient-to-br from-orange-400 to-rose-400 p-0.5 transition hover:from-orange-500 hover:to-rose-500 active:scale-95"
+                className="relative flex items-center gap-2 rounded-full bg-gradient-to-br from-orange-400 to-rose-400 p-0.5 transition hover:from-orange-500 hover:to-rose-500 active:scale-95"
                 title="个人主页"
               >
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-black text-orange-500 dark:bg-stone-800">
                   {user.email?.[0]?.toUpperCase()}
                 </span>
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white shadow">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
               </button>
             ) : hasSupabase() ? (
               <button

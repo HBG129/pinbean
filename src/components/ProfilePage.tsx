@@ -1,12 +1,22 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Grid3X3, Heart, Bookmark, LogOut, Loader2, User } from "lucide-react";
+import { Grid3X3, Heart, Bookmark, LogOut, Loader2, User, Bell } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
-import { getUserProjects, getUserLikedProjects, getUserBookmarkedProjects } from "../lib/cloudProjects";
+import { getUserProjects, getUserLikedProjects, getUserBookmarkedProjects, getNotifications, markAllRead } from "../lib/cloudProjects";
 import { beadColors221 } from "../data/beadColors221";
 import type { CloudProject } from "../lib/supabase";
 
-type Tab = "my" | "liked" | "bookmarked";
+type Tab = "my" | "liked" | "bookmarked" | "notifications";
+
+type NotifItem = {
+  id: string;
+  user_id: string;
+  actor_id: string;
+  type: string;
+  project_id: string;
+  read: boolean;
+  created_at: string;
+};
 
 export function ProfilePage() {
   const { user, signOut } = useAuth();
@@ -14,7 +24,10 @@ export function ProfilePage() {
   const [myProjects, setMyProjects] = useState<CloudProject[]>([]);
   const [likedProjects, setLikedProjects] = useState<CloudProject[]>([]);
   const [bookmarkedProjects, setBookmarkedProjects] = useState<CloudProject[]>([]);
+  const [notifs, setNotifs] = useState<NotifItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const unreadCount = notifs.filter((n) => !n.read).length;
 
   const colorMap = new Map(beadColors221.map((c) => [c.id, c]));
 
@@ -27,15 +40,22 @@ export function ProfilePage() {
       getUserProjects().catch(() => [] as CloudProject[]),
       getUserLikedProjects().catch(() => [] as CloudProject[]),
       getUserBookmarkedProjects().catch(() => [] as CloudProject[]),
-    ]).then(([my, liked, bm]) => {
+      getNotifications().catch(() => [] as NotifItem[]),
+    ]).then(([my, liked, bm, nf]) => {
       if (cancelled) return;
       setMyProjects(my);
       setLikedProjects(liked);
       setBookmarkedProjects(bm);
+      setNotifs(nf);
       setLoading(false);
     });
     return () => { cancelled = true; };
   }, [user]);
+
+  async function handleClearNotifs() {
+    await markAllRead();
+    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+  }
 
   if (!user) {
     return (
@@ -49,16 +69,22 @@ export function ProfilePage() {
     { key: "my", label: "我的作品", icon: <Grid3X3 size={16} />, count: myProjects.length },
     { key: "liked", label: "我的点赞", icon: <Heart size={16} />, count: likedProjects.length },
     { key: "bookmarked", label: "我的收藏", icon: <Bookmark size={16} />, count: bookmarkedProjects.length },
+    { key: "notifications", label: "消息", icon: <Bell size={16} />, count: unreadCount },
   ];
 
   const activeList = tab === "my" ? myProjects : tab === "liked" ? likedProjects : bookmarkedProjects;
+
+  const notifTypeLabel: Record<string, string> = {
+    like: "赞了你的作品",
+    comment: "评论了你的作品",
+    reply: "回复了你的评论",
+  };
 
   return (
     <div className="space-y-8">
       {/* profile header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          {/* avatar */}
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-rose-400 text-2xl font-black text-white shadow-lg">
             {user.email?.[0]?.toUpperCase() || <User size={24} />}
           </div>
@@ -78,12 +104,12 @@ export function ProfilePage() {
       </div>
 
       {/* tab bar */}
-      <div className="flex gap-1 rounded-2xl bg-stone-100 p-1 dark:bg-stone-700 w-fit">
+      <div className="flex gap-1 rounded-2xl bg-stone-100 p-1 dark:bg-stone-700 w-fit overflow-x-auto">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+            className={`relative flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition whitespace-nowrap ${
               tab === t.key
                 ? "bg-white text-stone-900 shadow dark:bg-stone-600 dark:text-stone-100"
                 : "text-stone-500"
@@ -92,60 +118,116 @@ export function ProfilePage() {
             {t.icon}
             {t.label}
             <span className="ml-1 rounded-full bg-stone-200 px-2 py-0.5 text-xs dark:bg-stone-600">{t.count}</span>
+            {t.key === "notifications" && t.count > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500" />
+            )}
           </button>
         ))}
       </div>
 
-      {/* project grid */}
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="animate-spin text-orange-500" size={32} />
-        </div>
-      ) : activeList.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-stone-400 dark:text-stone-500">
-          <p className="text-lg font-bold">
-            {tab === "my" ? "还没有作品" : tab === "liked" ? "还没有点赞过作品" : "还没有收藏作品"}
-          </p>
-          <p className="text-sm">
-            {tab === "my" ? "去编辑器创建一个吧" : "去社区逛逛吧"}
-          </p>
-        </div>
-      ) : (
-        <motion.div layout className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          <AnimatePresence mode="popLayout">
-            {activeList.map((p, i) => {
-              let grid: { width: number; height: number; cells: string[] } | null = null;
-              try { grid = JSON.parse(p.grid); } catch { /* ignore */ }
-              return (
+      {/* Notifications tab */}
+      {tab === "notifications" && (
+        <div className="space-y-4">
+          {notifs.length > 0 && (
+            <div className="flex justify-end">
+              <button
+                onClick={handleClearNotifs}
+                className="text-sm text-stone-500 transition hover:text-orange-500"
+              >
+                全部标为已读
+              </button>
+            </div>
+          )}
+          {notifs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-stone-400 dark:text-stone-500">
+              <Bell size={40} className="mb-3 opacity-30" />
+              <p className="font-bold">暂无消息</p>
+              <p className="text-sm">当有人给你的作品点赞或评论时，这里会显示</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {notifs.map((n) => (
                 <motion.div
-                  key={p.id}
-                  layout
-                  initial={{ opacity: 0, y: 20 }}
+                  key={n.id}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: i * 0.03, type: "spring", stiffness: 260, damping: 26 }}
-                  whileHover={{ scale: 1.02 }}
-                  className="overflow-hidden rounded-3xl bg-white shadow-sm transition-shadow hover:shadow-lg dark:bg-stone-800 dark:ring-1 dark:ring-stone-700"
+                  className={`flex items-center gap-3 rounded-2xl p-4 transition ${
+                    n.read
+                      ? "bg-white dark:bg-stone-800"
+                      : "bg-orange-50 ring-1 ring-orange-200 dark:bg-orange-900/10 dark:ring-orange-800/30"
+                  }`}
                 >
-                  <div className="flex h-40 items-center justify-center bg-stone-50 dark:bg-stone-800/50">
-                    {grid ? <MiniGrid grid={grid} colorMap={colorMap} /> : <span className="text-stone-300">无预览</span>}
-                  </div>
-                  <div className="p-4">
-                    <p className="font-bold dark:text-stone-100">{p.title}</p>
-                    <p className="text-xs text-stone-400 dark:text-stone-500">
-                      {grid ? `${grid.width} × ${grid.height}` : ""}
-                      {p.is_public && <span className="ml-2 text-green-500">公开</span>}
+                  <span className="shrink-0 rounded-full bg-stone-100 p-2 dark:bg-stone-700">
+                    {n.type === "like" ? <Heart size={16} className="text-red-400" /> : <Bell size={16} className="text-blue-400" />}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm dark:text-stone-200">
+                      <span className="font-bold">{n.actor_id?.slice(0, 8) ?? "用户"}</span>
+                      {" "}{notifTypeLabel[n.type] || n.type}
                     </p>
-                    <div className="mt-2 flex items-center gap-3 text-xs text-stone-400">
-                      <span className="flex items-center gap-1"><Heart size={12} />{p.likes_count}</span>
-                      <span className="flex items-center gap-1"><Bookmark size={12} />{p.bookmarks_count}</span>
-                    </div>
+                    <p className="text-xs text-stone-400 dark:text-stone-500">
+                      {new Date(n.created_at).toLocaleString("zh-CN")}
+                    </p>
                   </div>
+                  {!n.read && <span className="h-2 w-2 shrink-0 rounded-full bg-red-500" />}
                 </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Projects grid (non-notif tabs) */}
+      {tab !== "notifications" && (
+        <div className="space-y-4">
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <Loader2 className="animate-spin text-orange-500" size={32} />
+            </div>
+          ) : activeList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-stone-400 dark:text-stone-500">
+              <p className="text-lg font-bold">
+                {tab === "my" ? "还没有作品" : tab === "liked" ? "还没有点赞过作品" : "还没有收藏作品"}
+              </p>
+            </div>
+          ) : (
+            <motion.div layout className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <AnimatePresence mode="popLayout">
+                {activeList.map((p, i) => {
+                  let grid: { width: number; height: number; cells: string[] } | null = null;
+                  try { grid = JSON.parse(p.grid); } catch { /* ignore */ }
+                  return (
+                    <motion.div
+                      key={p.id}
+                      layout
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ delay: i * 0.03, type: "spring", stiffness: 260, damping: 26 }}
+                      whileHover={{ scale: 1.02 }}
+                      className="overflow-hidden rounded-3xl bg-white shadow-sm transition-shadow hover:shadow-lg dark:bg-stone-800 dark:ring-1 dark:ring-stone-700"
+                    >
+                      <div className="flex h-40 items-center justify-center bg-stone-50 dark:bg-stone-800/50">
+                        {grid ? <MiniGrid grid={grid} colorMap={colorMap} /> : <span className="text-stone-300">无预览</span>}
+                      </div>
+                      <div className="p-4">
+                        <p className="font-bold dark:text-stone-100">{p.title}</p>
+                        <p className="text-xs text-stone-400 dark:text-stone-500">
+                          {grid ? `${grid.width} × ${grid.height}` : ""}
+                          {p.is_public && <span className="ml-2 text-green-500">公开</span>}
+                        </p>
+                        <div className="mt-2 flex items-center gap-3 text-xs text-stone-400">
+                          <span className="flex items-center gap-1"><Heart size={12} />{p.likes_count}</span>
+                          <span className="flex items-center gap-1"><Bookmark size={12} />{p.bookmarks_count}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </motion.div>
+          )}
+        </div>
       )}
     </div>
   );
