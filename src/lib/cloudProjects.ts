@@ -34,7 +34,45 @@ export async function deleteCloudProject(id: string) {
   if (error) throw error;
 }
 
-export async function getCommunityFeed(sort: "latest" | "likes" | "comments" | "bookmarks" = "latest") {
+/** rename a project */
+export async function updateCloudProject(id: string, title: string) {
+  const { error } = await db()
+    .from("projects")
+    .update({ title, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/** toggle is_public on a project */
+export async function toggleProjectPublic(id: string) {
+  const { data: current } = await db().from("projects").select("is_public").eq("id", id).single();
+  if (!current) throw new Error("作品不存在");
+  const { error } = await db()
+    .from("projects")
+    .update({ is_public: !current.is_public, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+  return !current.is_public;
+}
+
+export async function getCommunityFeed(sort: "latest" | "likes" | "comments" | "bookmarks" | "hot" = "latest") {
+  // "hot" uses a composite score
+  if (sort === "hot") {
+    const { data, error } = await db()
+      .from("projects")
+      .select("*")
+      .eq("is_public", true)
+      .order("likes_count", { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    // sort by composite score client-side
+    const scored = (data || []).map((p: CloudProject) => ({
+      ...p,
+      _score: p.likes_count * 2 + p.comments_count * 3 + p.bookmarks_count * 5,
+    }));
+    scored.sort((a, b) => (b._score - a._score));
+    return scored as CloudProject[];
+  }
   const column = sort === "latest" ? "created_at" : `${sort}_count`;
   const { data, error } = await db()
     .from("projects")

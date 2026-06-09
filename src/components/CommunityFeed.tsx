@@ -9,7 +9,7 @@ import type { CloudProject, Comment as DBComment } from "../lib/supabase";
 export function CommunityFeed({ onCreatePublish }: { onCreatePublish?: () => void }) {
   const { user } = useAuth();
   const [projects, setProjects] = useState<CloudProject[]>([]);
-  const [sort, setSort] = useState<"latest" | "likes" | "comments" | "bookmarks">("latest");
+  const [sort, setSort] = useState<"latest" | "likes" | "comments" | "bookmarks" | "hot">("latest");
   const [liked, setLiked] = useState<Set<string>>(new Set());
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -101,6 +101,7 @@ export function CommunityFeed({ onCreatePublish }: { onCreatePublish?: () => voi
 
   const sorts: { key: typeof sort; label: string }[] = [
     { key: "latest", label: "最新" },
+    { key: "hot", label: "热门" },
     { key: "likes", label: "最多赞" },
     { key: "comments", label: "最多评论" },
     { key: "bookmarks", label: "最多收藏" },

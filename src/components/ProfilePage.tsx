@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Grid3X3, Heart, Bookmark, LogOut, Loader2, User, Bell } from "lucide-react";
+import { Grid3X3, Heart, Bookmark, LogOut, Loader2, User, Bell, Trash2, Pencil, Eye, EyeOff, MoreHorizontal, X } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
-import { getUserProjects, getUserLikedProjects, getUserBookmarkedProjects, getNotifications, markAllRead } from "../lib/cloudProjects";
+import { getUserProjects, getUserLikedProjects, getUserBookmarkedProjects, getNotifications, markAllRead, updateCloudProject, deleteCloudProject, toggleProjectPublic } from "../lib/cloudProjects";
 import { beadColors221 } from "../data/beadColors221";
 import type { CloudProject } from "../lib/supabase";
 
@@ -27,8 +27,12 @@ export function ProfilePage() {
   const [notifs, setNotifs] = useState<NotifItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const unreadCount = notifs.filter((n) => !n.read).length;
+  // edit state
+  const [editProject, setEditProject] = useState<CloudProject | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
+  const unreadCount = notifs.filter((n) => !n.read).length;
   const colorMap = new Map(beadColors221.map((c) => [c.id, c]));
 
   useEffect(() => {
@@ -57,6 +61,27 @@ export function ProfilePage() {
     setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
   }
 
+  async function handleRename() {
+    if (!editProject || !editTitle.trim()) return;
+    await updateCloudProject(editProject.id, editTitle.trim());
+    setMyProjects((prev) => prev.map((p) => (p.id === editProject.id ? { ...p, title: editTitle.trim() } : p)));
+    setEditProject(null);
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("确定删除这个作品？此操作不可撤销。")) return;
+    await deleteCloudProject(id).catch(() => alert("删除失败"));
+    setMyProjects((prev) => prev.filter((p) => p.id !== id));
+    setMenuOpen(null);
+  }
+
+  async function handleTogglePublic(id: string) {
+    const newState = await toggleProjectPublic(id).catch(() => null);
+    if (newState === null) return;
+    setMyProjects((prev) => prev.map((p) => (p.id === id ? { ...p, is_public: newState } : p)));
+    setMenuOpen(null);
+  }
+
   if (!user) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center text-stone-400 dark:text-stone-500">
@@ -82,6 +107,48 @@ export function ProfilePage() {
 
   return (
     <div className="space-y-8">
+      {/* Rename Modal */}
+      <AnimatePresence>
+        {editProject && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 28 }}
+              className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl dark:bg-stone-800"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-black dark:text-stone-100">重命名作品</h3>
+                <button onClick={() => setEditProject(null)} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700">
+                  <X size={18} />
+                </button>
+              </div>
+              <input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleRename(); }}
+                className="mt-4 w-full rounded-2xl border border-stone-200 px-4 py-3 text-sm outline-none transition focus:border-orange-400 dark:border-stone-600 dark:bg-stone-700 dark:text-stone-100"
+                autoFocus
+              />
+              <div className="mt-4 flex gap-2">
+                <button onClick={() => setEditProject(null)} className="flex-1 rounded-2xl bg-stone-100 py-3 text-sm font-bold text-stone-600 transition hover:bg-stone-200 dark:bg-stone-700 dark:text-stone-300">
+                  取消
+                </button>
+                <button onClick={handleRename} className="flex-1 rounded-2xl bg-orange-500 py-3 text-sm font-bold text-white transition hover:bg-orange-600 active:scale-[0.97]">
+                  保存
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* profile header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -115,8 +182,7 @@ export function ProfilePage() {
                 : "text-stone-500"
             }`}
           >
-            {t.icon}
-            {t.label}
+            {t.icon} {t.label}
             <span className="ml-1 rounded-full bg-stone-200 px-2 py-0.5 text-xs dark:bg-stone-600">{t.count}</span>
             {t.key === "notifications" && t.count > 0 && (
               <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500" />
@@ -130,10 +196,7 @@ export function ProfilePage() {
         <div className="space-y-4">
           {notifs.length > 0 && (
             <div className="flex justify-end">
-              <button
-                onClick={handleClearNotifs}
-                className="text-sm text-stone-500 transition hover:text-orange-500"
-              >
+              <button onClick={handleClearNotifs} className="text-sm text-stone-500 transition hover:text-orange-500">
                 全部标为已读
               </button>
             </div>
@@ -189,6 +252,7 @@ export function ProfilePage() {
               <p className="text-lg font-bold">
                 {tab === "my" ? "还没有作品" : tab === "liked" ? "还没有点赞过作品" : "还没有收藏作品"}
               </p>
+              {tab === "my" && <p className="text-sm">去编辑器创建一个吧</p>}
             </div>
           ) : (
             <motion.div layout className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -205,16 +269,73 @@ export function ProfilePage() {
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ delay: i * 0.03, type: "spring", stiffness: 260, damping: 26 }}
                       whileHover={{ scale: 1.02 }}
-                      className="overflow-hidden rounded-3xl bg-white shadow-sm transition-shadow hover:shadow-lg dark:bg-stone-800 dark:ring-1 dark:ring-stone-700"
+                      className="group relative overflow-hidden rounded-3xl bg-white shadow-sm transition-shadow hover:shadow-lg dark:bg-stone-800 dark:ring-1 dark:ring-stone-700"
                     >
                       <div className="flex h-40 items-center justify-center bg-stone-50 dark:bg-stone-800/50">
                         {grid ? <MiniGrid grid={grid} colorMap={colorMap} /> : <span className="text-stone-300">无预览</span>}
+
+                        {/* action menu (my tab only) */}
+                        {tab === "my" && (
+                          <div className="absolute right-2 top-2 z-10">
+                            <div className="relative">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMenuOpen(menuOpen === p.id ? null : p.id);
+                                }}
+                                className="rounded-xl bg-white/80 p-2 text-stone-400 opacity-0 transition hover:text-stone-600 group-hover:opacity-100 dark:bg-stone-700/80 dark:text-stone-300 dark:hover:text-stone-100"
+                              >
+                                <MoreHorizontal size={16} />
+                              </button>
+                              <AnimatePresence>
+                                {menuOpen === p.id && (
+                                  <motion.div
+                                    initial={{ opacity: 0, scale: 0.9, y: -4 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9, y: -4 }}
+                                    transition={{ duration: 0.15 }}
+                                    className="absolute right-0 top-full mt-1 w-36 rounded-2xl bg-white p-1.5 shadow-xl dark:bg-stone-700"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <button
+                                      onClick={() => { setEditProject(p); setEditTitle(p.title); setMenuOpen(null); }}
+                                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-stone-600 transition hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-600"
+                                    >
+                                      <Pencil size={14} /> 重命名
+                                    </button>
+                                    <button
+                                      onClick={() => handleTogglePublic(p.id)}
+                                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-stone-600 transition hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-600"
+                                    >
+                                      {p.is_public ? <EyeOff size={14} /> : <Eye size={14} />}
+                                      {p.is_public ? "设为私密" : "设为公开"}
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete(p.id)}
+                                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-red-500 transition hover:bg-red-50 dark:hover:bg-red-900/20"
+                                    >
+                                      <Trash2 size={14} /> 删除
+                                    </button>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="p-4">
                         <p className="font-bold dark:text-stone-100">{p.title}</p>
                         <p className="text-xs text-stone-400 dark:text-stone-500">
                           {grid ? `${grid.width} × ${grid.height}` : ""}
-                          {p.is_public && <span className="ml-2 text-green-500">公开</span>}
+                          {p.is_public ? (
+                            <span className="ml-2 inline-flex items-center gap-0.5 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-600 dark:bg-green-900/20 dark:text-green-400">
+                              <Eye size={10} /> 公开
+                            </span>
+                          ) : (
+                            <span className="ml-2 inline-flex items-center gap-0.5 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-500 dark:bg-stone-700 dark:text-stone-400">
+                              <EyeOff size={10} /> 私密
+                            </span>
+                          )}
                         </p>
                         <div className="mt-2 flex items-center gap-3 text-xs text-stone-400">
                           <span className="flex items-center gap-1"><Heart size={12} />{p.likes_count}</span>
