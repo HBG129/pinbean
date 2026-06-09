@@ -257,7 +257,7 @@ function AppShell() {
       {/* === COMMUNITY PAGE === */}
       {page === "community" && (
         <main className="relative z-10 mx-auto max-w-[1200px] px-4 py-8 md:px-6">
-          <CommunityFeed onGoCreate={() => setPage("editor")} />
+          <CommunityFeed onCreatePublish={() => setPublishOpen(true)} />
         </main>
       )}
 
