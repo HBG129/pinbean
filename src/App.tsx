@@ -31,6 +31,7 @@ import { AuthProvider } from "./components/AuthProvider";
 import { useAuth } from "./hooks/useAuth";
 import { AuthModal } from "./components/AuthModal";
 import { CommunityFeed } from "./components/CommunityFeed";
+import { PublishModal } from "./components/PublishModal";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { hasSupabase } from "./lib/supabase";
 import { saveCloudProject } from "./lib/cloudProjects";
@@ -59,6 +60,7 @@ function AppShell() {
   const [projectTitle, setProjectTitle] = useState("我的拼豆作品");
   const [projects, setProjects] = useState<LocalProject[]>(() => getLocalProjects());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
   const { dark, toggle: toggleDark } = useDarkMode();
   const grid = gridState.value;
 
@@ -127,13 +129,13 @@ function AppShell() {
 
   function handleSaveProject() {
     if (!grid) return;
-    if (user) {
-      saveCloudProject(projectTitle || "未命名作品", grid, false).then(() => {
-        alert("已保存到云端！");
-      }).catch(() => alert("云端保存失败"));
-    } else {
-      saveLocalProject(projectTitle || "未命名作品", grid);
-      setProjects(getLocalProjects());
+    // always save locally
+    saveLocalProject(projectTitle || "未命名作品", grid);
+    setProjects(getLocalProjects());
+    // also save to cloud if logged in
+    if (user && hasSupabase()) {
+      saveCloudProject(projectTitle || "未命名作品", grid, false)
+        .catch(() => alert("云端保存失败，但已存到本地"));
     }
   }
 
@@ -159,6 +161,15 @@ function AppShell() {
 
       {/* Auth Modal */}
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+
+      {/* Publish Modal */}
+      <PublishModal
+        open={publishOpen}
+        onClose={() => setPublishOpen(false)}
+        currentGrid={grid}
+        localProjects={projects}
+        onPublished={() => setPage("community")}
+      />
 
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-stone-200 bg-white/85 backdrop-blur dark:border-stone-700 dark:bg-stone-800/85">
@@ -246,7 +257,7 @@ function AppShell() {
       {/* === COMMUNITY PAGE === */}
       {page === "community" && (
         <main className="relative z-10 mx-auto max-w-[1200px] px-4 py-8 md:px-6">
-          <CommunityFeed />
+          <CommunityFeed onGoCreate={() => setPage("editor")} />
         </main>
       )}
 
@@ -269,6 +280,17 @@ function AppShell() {
             </aside>
 
             <section className="space-y-5 order-first xl:order-none">
+              {/* Publish to community button */}
+              {hasSupabase() && grid && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setPublishOpen(true)}
+                    className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-rose-400 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:from-orange-600 hover:to-rose-500 active:scale-[0.97]"
+                  >
+                    <Globe size={16} /> 发布到社区
+                  </button>
+                </div>
+              )}
               <BeadCanvas
                 grid={grid} palette={palette} colorMap={colorMap}
                 displayCellSize={displayCellSize} showColorCode={showColorCode} fitView={fitView}

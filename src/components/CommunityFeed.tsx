@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Heart, MessageCircle, Bookmark, ExternalLink, Loader2 } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, ExternalLink, Loader2, Plus } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { getCommunityFeed, toggleLike, toggleBookmark, hasUserLiked } from "../lib/cloudProjects";
 import type { CloudProject } from "../lib/supabase";
 
-export function CommunityFeed() {
+export function CommunityFeed({ onGoCreate }: { onGoCreate?: () => void }) {
   const { user } = useAuth();
   const [projects, setProjects] = useState<CloudProject[]>([]);
   const [sort, setSort] = useState<"latest" | "likes" | "comments" | "bookmarks">("latest");
@@ -69,7 +69,16 @@ export function CommunityFeed() {
           <h2 className="text-2xl font-black tracking-tight dark:text-stone-100">作品广场</h2>
           <p className="text-sm text-stone-500 dark:text-stone-400">发现社区里最棒的拼豆作品</p>
         </div>
-        <div className="flex gap-1 rounded-2xl bg-stone-100 p-1 dark:bg-stone-700">
+        <div className="flex items-center gap-3">
+          {onGoCreate && (
+            <button
+              onClick={onGoCreate}
+              className="flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-orange-600 active:scale-[0.97]"
+            >
+              <Plus size={16} /> 发布作品
+            </button>
+          )}
+          <div className="flex gap-1 rounded-2xl bg-stone-100 p-1 dark:bg-stone-700">
           {sorts.map((s) => (
             <button
               key={s.key}
@@ -81,6 +90,7 @@ export function CommunityFeed() {
               {s.label}
             </button>
           ))}
+        </div>
         </div>
       </div>
 
