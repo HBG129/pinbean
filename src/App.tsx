@@ -31,6 +31,7 @@ import { AuthProvider } from "./components/AuthProvider";
 import { useAuth } from "./hooks/useAuth";
 import { AuthModal } from "./components/AuthModal";
 import { CommunityFeed } from "./components/CommunityFeed";
+import { hasSupabase } from "./lib/supabase";
 import { saveCloudProject } from "./lib/cloudProjects";
 
 type Page = "editor" | "community";
@@ -177,6 +178,7 @@ function AppShell() {
               >
                 <Home size={15} /> 编辑器
               </button>
+              {hasSupabase() && (
               <button
                 onClick={() => setPage("community")}
                 className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-bold transition ${
@@ -185,18 +187,21 @@ function AppShell() {
               >
                 <Globe size={15} /> 社区
               </button>
+              )}
             </nav>
           </div>
 
           {/* right: user + dark + mobile menu */}
           <div className="flex items-center gap-2">
             {/* mobile nav */}
+            {hasSupabase() ? (
             <div className="flex gap-1 rounded-2xl bg-stone-100 p-1 sm:hidden dark:bg-stone-700">
               <button onClick={() => setPage("editor")} className={`rounded-xl px-2.5 py-1 text-xs font-bold ${page === "editor" ? "bg-white text-stone-900 shadow dark:bg-stone-600 dark:text-stone-100" : "text-stone-500"}`}>编辑</button>
               <button onClick={() => setPage("community")} className={`rounded-xl px-2.5 py-1 text-xs font-bold ${page === "community" ? "bg-white text-stone-900 shadow dark:bg-stone-600 dark:text-stone-100" : "text-stone-500"}`}>社区</button>
             </div>
+            ) : null}
 
-            {user ? (
+            {hasSupabase() && user ? (
               <div className="flex items-center gap-2">
                 <span className="hidden text-sm font-medium text-stone-600 sm:inline dark:text-stone-300">
                   {user.email?.split("@")[0]}
@@ -209,14 +214,14 @@ function AppShell() {
                   <LogOut size={15} />
                 </button>
               </div>
-            ) : (
+            ) : hasSupabase() ? (
               <button
                 onClick={() => setAuthOpen(true)}
                 className="flex items-center gap-1.5 rounded-xl bg-orange-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-orange-600 active:scale-[0.97]"
               >
                 <User size={15} /> 登录
               </button>
-            )}
+            ) : null}
 
             {/* mobile sidebar toggle (editor only) */}
             {page === "editor" && (

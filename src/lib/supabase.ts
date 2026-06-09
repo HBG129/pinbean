@@ -1,9 +1,20 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+let _supabase: SupabaseClient | null = null;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+function getSupabase() {
+  if (_supabase) return _supabase;
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  _supabase = createClient(url || "", key || "");
+  return _supabase;
+}
+
+export const supabase = getSupabase();
+
+/** true if Supabase env vars are configured */
+export const hasSupabase = () =>
+  Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 export type Profile = {
   id: string;
@@ -16,7 +27,7 @@ export type CloudProject = {
   id: string;
   user_id: string;
   title: string;
-  grid: string; // JSON stringified BeadGrid
+  grid: string;
   thumbnail: string | null;
   is_public: boolean;
   likes_count: number;
