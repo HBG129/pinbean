@@ -88,12 +88,12 @@ export async function getComments(projectId: string) {
   return data || [];
 }
 
-export async function addComment(projectId: string, content: string) {
+export async function addComment(projectId: string, content: string, parentId?: string) {
   const { data: user } = await supabase!.auth.getUser();
   if (!user.user) throw new Error("请先登录");
   const { error } = await db()
     .from("comments")
-    .insert({ project_id: projectId, user_id: user.user.id, content });
+    .insert({ project_id: projectId, user_id: user.user.id, content, parent_id: parentId || null });
   if (error) throw error;
   await db().rpc("increment_comments", { project_id: projectId });
 }

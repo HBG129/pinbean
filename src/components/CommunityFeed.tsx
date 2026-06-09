@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Heart, MessageCircle, Bookmark, ExternalLink, Loader2, Plus, X } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, ExternalLink, Loader2, Plus, X, Send, CornerDownRight } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
-import { getCommunityFeed, toggleLike, toggleBookmark, hasUserLiked } from "../lib/cloudProjects";
+import { getCommunityFeed, toggleLike, toggleBookmark, hasUserLiked, getComments, addComment } from "../lib/cloudProjects";
 import { beadColors221 } from "../data/beadColors221";
-import type { CloudProject } from "../lib/supabase";
+import type { CloudProject, Comment as DBComment } from "../lib/supabase";
 
 export function CommunityFeed({ onCreatePublish }: { onCreatePublish?: () => void }) {
   const { user } = useAuth();
@@ -14,6 +14,10 @@ export function CommunityFeed({ onCreatePublish }: { onCreatePublish?: () => voi
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<CloudProject | null>(null);
+  const [comments, setComments] = useState<DBComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [replyTo, setReplyTo] = useState<string | null>(null); // parent comment id
 
   /* color map from built-in palette */
   const colorMap = new Map(beadColors221.map((c) => [c.id, c]));
@@ -47,6 +51,33 @@ export function CommunityFeed({ onCreatePublish }: { onCreatePublish?: () => voi
       prev.map((p) => (p.id === id ? { ...p, likes_count: p.likes_count + (wasLiked ? -1 : 1) } : p))
     );
     try { await toggleLike(id); } catch { /* revert */ }
+  }
+
+  async function handleOpenDetail(p: CloudProject) {
+    setExpanded(p);
+    setReplyTo(null);
+    setCommentText("");
+    setCommentsLoading(true);
+    try {
+      const data = await getComments(p.id);
+      setComments(data);
+    } catch { setComments([]); }
+    setCommentsLoading(false);
+  }
+
+  async function handleSubmitComment(parentId?: string) {
+    if (!expanded || !commentText.trim() || !user) return;
+    const text = commentText.trim();
+    setCommentText("");
+    setReplyTo(null);
+    try {
+      await addComment(expanded.id, text, parentId);
+      const data = await getComments(expanded.id);
+      setComments(data);
+      setProjects((prev) =>
+        prev.map((p) => (p.id === expanded.id ? { ...p, comments_count: p.comments_count + 1 } : p))
+      );
+    } catch { /* ignore */ }
   }
 
   async function handleBookmark(id: string) {
@@ -128,7 +159,7 @@ export function CommunityFeed({ onCreatePublish }: { onCreatePublish?: () => voi
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ delay: i * 0.04, type: "spring", stiffness: 260, damping: 26 }}
                 whileHover={{ scale: 1.02 }}
-                onClick={() => setExpanded(p)}
+                onClick={() => handleOpenDetail(p)}
                 className="group cursor-pointer overflow-hidden rounded-3xl bg-white shadow-sm transition-shadow hover:shadow-lg dark:bg-stone-800 dark:shadow-none dark:ring-1 dark:ring-stone-700"
               >
                 <div className="relative flex h-48 items-center justify-center bg-stone-50 dark:bg-stone-800/50">
@@ -207,6 +238,7 @@ export function CommunityFeed({ onCreatePublish }: { onCreatePublish?: () => voi
                   </div>
                 ) : null;
               })()}
+              {/* action bar */}
               <div className="mt-4 flex items-center gap-4 text-stone-400 dark:text-stone-500">
                 <button
                   onClick={() => handleLike(expanded.id).catch(() => {})}
@@ -226,6 +258,96 @@ export function CommunityFeed({ onCreatePublish }: { onCreatePublish?: () => voi
                   <Bookmark size={18} fill={bookmarked.has(expanded.id) ? "currentColor" : "none"} />
                   {bookmarked.has(expanded.id) ? "已收藏" : "收藏"}
                 </button>
+              </div>
+
+              {/* comments section */}
+              <div className="mt-5 border-t border-stone-100 pt-4 dark:border-stone-700">
+                {/* new comment input */}
+                {user ? (
+                  <div className="flex gap-2">
+                    <input
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleSubmitComment(); }}
+                      placeholder={replyTo ? "写回复..." : "写评论..."}
+                      className="flex-1 rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none transition focus:border-orange-400 dark:border-stone-600 dark:bg-stone-700 dark:text-stone-100 dark:placeholder:text-stone-400"
+                    />
+                    {replyTo && (
+                      <button
+                        onClick={() => setReplyTo(null)}
+                        className="rounded-xl px-2 text-sm text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"
+                      >
+                        取消
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleSubmitComment(replyTo ?? undefined)}
+                      disabled={!commentText.trim()}
+                      className="rounded-xl bg-orange-500 px-3 py-2 text-white transition hover:bg-orange-600 active:scale-[0.97] disabled:bg-stone-300 dark:disabled:bg-stone-600"
+                    >
+                      <Send size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-center text-sm text-stone-400 dark:text-stone-500">
+                    登录后参与评论
+                  </p>
+                )}
+
+                {/* comment list */}
+                <div className="mt-3 max-h-64 overflow-y-auto space-y-3">
+                  {commentsLoading ? (
+                    <div className="flex justify-center py-4">
+                      <Loader2 size={18} className="animate-spin text-stone-400" />
+                    </div>
+                  ) : comments.length === 0 ? (
+                    <p className="py-4 text-center text-sm text-stone-400 dark:text-stone-500">
+                      还没有评论，来坐沙发
+                    </p>
+                  ) : (
+                    <>
+                      {/* top-level comments */}
+                      {comments
+                        .filter((c) => !c.parent_id)
+                        .map((c) => {
+                          const replies = comments.filter((r) => r.parent_id === c.id);
+                          return (
+                            <div key={c.id} className="space-y-2">
+                              <div className="rounded-2xl bg-stone-50 p-3 dark:bg-stone-800/50">
+                                <p className="text-xs font-bold text-stone-500 dark:text-stone-400">
+                                  {c.user_id?.slice(0, 8) ?? "匿名用户"}
+                                  <span className="ml-2 font-normal text-stone-400">
+                                    {new Date(c.created_at).toLocaleDateString("zh-CN")}
+                                  </span>
+                                </p>
+                                <p className="mt-1 text-sm dark:text-stone-200">{c.content}</p>
+                                {user && (
+                                  <button
+                                    onClick={() => { setReplyTo(c.id); setCommentText(""); }}
+                                    className="mt-1 flex items-center gap-1 text-xs text-stone-400 transition hover:text-orange-500"
+                                  >
+                                    <CornerDownRight size={12} /> 回复
+                                  </button>
+                                )}
+                              </div>
+                              {/* replies */}
+                              {replies.map((r) => (
+                                <div key={r.id} className="ml-6 rounded-2xl border border-stone-100 bg-stone-50/50 p-3 dark:border-stone-700 dark:bg-stone-800/30">
+                                  <p className="text-xs font-bold text-stone-500 dark:text-stone-400">
+                                    {r.user_id?.slice(0, 8) ?? "匿名用户"}
+                                    <span className="ml-2 font-normal text-stone-400">
+                                      {new Date(r.created_at).toLocaleDateString("zh-CN")}
+                                    </span>
+                                  </p>
+                                  <p className="mt-1 text-sm dark:text-stone-200">{r.content}</p>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })}
+                    </>
+                  )}
+                </div>
               </div>
             </motion.div>
           </motion.div>
