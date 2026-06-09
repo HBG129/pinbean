@@ -290,8 +290,10 @@ function AppShell() {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <AuthProvider>
       <AppShell />
     </AuthProvider>
+    </ErrorBoundary>
   );
 }
