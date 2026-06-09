@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Grid3X3, Heart, Bookmark, LogOut, Loader2, User, Bell, Trash2, Pencil, Eye, EyeOff, MoreHorizontal, X } from "lucide-react";
+import { Grid3X3, Heart, Bookmark, LogOut, Loader2, User, Bell, Trash2, Pencil, Eye, EyeOff, MoreHorizontal, X, Camera } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { getUserProjects, getUserLikedProjects, getUserBookmarkedProjects, getNotifications, markAllRead, updateCloudProject, deleteCloudProject, toggleProjectPublic } from "../lib/cloudProjects";
 import { beadColors221 } from "../data/beadColors221";
+import { uploadAvatar, getAvatarUrl } from "../lib/avatarStorage";
+import type { BeadGrid } from "../types/bead";
 import type { CloudProject } from "../lib/supabase";
 
 type Tab = "my" | "liked" | "bookmarked" | "notifications";
@@ -18,7 +20,7 @@ type NotifItem = {
   created_at: string;
 };
 
-export function ProfilePage() {
+export function ProfilePage({ onOpenInEditor }: { onOpenInEditor?: (grid: BeadGrid, title: string) => void }) {
   const { user, signOut } = useAuth();
   const [tab, setTab] = useState<Tab>("my");
   const [myProjects, setMyProjects] = useState<CloudProject[]>([]);
@@ -26,6 +28,7 @@ export function ProfilePage() {
   const [bookmarkedProjects, setBookmarkedProjects] = useState<CloudProject[]>([]);
   const [notifs, setNotifs] = useState<NotifItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   // edit state
   const [editProject, setEditProject] = useState<CloudProject | null>(null);
@@ -34,6 +37,24 @@ export function ProfilePage() {
 
   const unreadCount = notifs.filter((n) => !n.read).length;
   const colorMap = new Map(beadColors221.map((c) => [c.id, c]));
+
+  // load avatar
+  useEffect(() => {
+    if (!user) return;
+    getAvatarUrl().then(setAvatarUrl).catch(() => {});
+  }, [user]);
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const url = await uploadAvatar(file);
+      setAvatarUrl(url);
+    } catch {
+      alert("上传失败，请重试");
+    }
+    e.target.value = "";
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -152,9 +173,23 @@ export function ProfilePage() {
       {/* profile header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-rose-400 text-2xl font-black text-white shadow-lg">
-            {user.email?.[0]?.toUpperCase() || <User size={24} />}
-          </div>
+          <label className="group relative cursor-pointer">
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
+            <div
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-rose-400 text-2xl font-black text-white shadow-lg bg-cover bg-center overflow-hidden"
+              style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
+            >
+              {!avatarUrl && (user.email?.[0]?.toUpperCase() || <User size={24} />)}
+            </div>
+            <span className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full bg-white shadow transition group-hover:scale-110 dark:bg-stone-600">
+              <Camera size={12} className="text-stone-500 dark:text-stone-300" />
+            </span>
+          </label>
           <div>
             <h2 className="text-xl font-black dark:text-stone-100">
               {user.email?.split("@")[0] ?? "用户"}
@@ -269,7 +304,13 @@ export function ProfilePage() {
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ delay: i * 0.03, type: "spring", stiffness: 260, damping: 26 }}
                       whileHover={{ scale: 1.02 }}
-                      className="group relative overflow-hidden rounded-3xl bg-white shadow-sm transition-shadow hover:shadow-lg dark:bg-stone-800 dark:ring-1 dark:ring-stone-700"
+                      onClick={tab === "my" && onOpenInEditor ? () => {
+                        try {
+                          const g: BeadGrid = JSON.parse(p.grid);
+                          onOpenInEditor(g, p.title);
+                        } catch { /* ignore */ }
+                      } : undefined}
+                      className={`group relative overflow-hidden rounded-3xl bg-white shadow-sm transition-shadow hover:shadow-lg dark:bg-stone-800 dark:ring-1 dark:ring-stone-700 ${tab === "my" && onOpenInEditor ? "cursor-pointer" : ""}`}
                     >
                       <div className="flex h-40 items-center justify-center bg-stone-50 dark:bg-stone-800/50">
                         {grid ? <MiniGrid grid={grid} colorMap={colorMap} /> : <span className="text-stone-300">无预览</span>}

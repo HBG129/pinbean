@@ -272,7 +272,14 @@ function AppShell() {
       {/* === PROFILE PAGE === */}
       {page === "profile" && (
         <main className="relative z-10 mx-auto max-w-[1200px] px-4 py-8 md:px-6">
-          <ProfilePage />
+          <ProfilePage onOpenInEditor={(g, title) => {
+            gridState.reset(g);
+            setWidth(g.width);
+            setHeight(g.height);
+            setProjectTitle(title);
+            setFitView(true);
+            setPage("editor");
+          }} />
         </main>
       )}
 
