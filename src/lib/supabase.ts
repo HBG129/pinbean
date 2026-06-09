@@ -2,18 +2,23 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 let _supabase: SupabaseClient | null = null;
 
-function getSupabase() {
-  if (_supabase) return _supabase;
-  const url = import.meta.env.VITE_SUPABASE_URL;
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  _supabase = createClient(url || "", key || "");
+function getSupabase(): SupabaseClient | null {
+  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+  if (!url || !key) return null;
+  if (!_supabase) _supabase = createClient(url, key);
   return _supabase;
+}
+
+export function db(): SupabaseClient {
+  const s = getSupabase();
+  if (!s) throw new Error("Supabase 未配置");
+  return s;
 }
 
 export const supabase = getSupabase();
 
-/** true if Supabase env vars are configured */
-export const hasSupabase = () =>
+export const hasSupabase = (): boolean =>
   Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 export type Profile = {

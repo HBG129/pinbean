@@ -18,12 +18,12 @@ export function AuthModal({ open, onClose }: Props) {
     setBusy(true);
     try {
       if (tab === "register") {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase!.auth.signUp({ email, password });
         if (error) throw error;
         setMsg("注册成功！请检查邮箱确认链接，或直接登录。");
         setTab("login");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase!.auth.signInWithPassword({ email, password });
         if (error) throw error;
         onClose();
       }

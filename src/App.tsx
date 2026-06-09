@@ -31,6 +31,7 @@ import { AuthProvider } from "./components/AuthProvider";
 import { useAuth } from "./hooks/useAuth";
 import { AuthModal } from "./components/AuthModal";
 import { CommunityFeed } from "./components/CommunityFeed";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { hasSupabase } from "./lib/supabase";
 import { saveCloudProject } from "./lib/cloudProjects";
 
@@ -152,6 +153,7 @@ function AppShell() {
   };
 
   return (
+    <ErrorBoundary>
     <div className="relative min-h-screen bg-[#f6f3ee] dark:bg-[#1c1a17] transition-colors duration-300">
       <CursorSpotlight />
 
@@ -282,6 +284,7 @@ function AppShell() {
         </main>
       )}
     </div>
+    </ErrorBoundary>
   );
 }
 

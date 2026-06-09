@@ -8,7 +8,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(() => hasSupabase());
 
   useEffect(() => {
-    if (!hasSupabase()) return;
+    if (!supabase) return;
     let cancelled = false;
     supabase.auth.getSession().then(({ data }) => {
       if (!cancelled) {
@@ -26,13 +26,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refresh = async () => {
-    if (!hasSupabase()) return;
+    if (!supabase) return;
     const { data } = await supabase.auth.getUser();
     setUser(data.user ?? null);
   };
 
   const signOut = async () => {
-    if (!hasSupabase()) return;
+    if (!supabase) return;
     await supabase.auth.signOut();
     setUser(null);
   };

@@ -1,9 +1,9 @@
-import { supabase } from "./supabase";
+import { supabase, db } from "./supabase";
 import type { BeadGrid } from "../types/bead";
 import type { CloudProject } from "./supabase";
 
 export async function getMyProjects(): Promise<CloudProject[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from("projects")
     .select("*")
     .order("updated_at", { ascending: false });
@@ -12,10 +12,10 @@ export async function getMyProjects(): Promise<CloudProject[]> {
 }
 
 export async function saveCloudProject(title: string, grid: BeadGrid, isPublic = false) {
-  const { data: user } = await supabase.auth.getUser();
+  const { data: user } = await supabase!.auth.getUser();
   if (!user.user) throw new Error("请先登录");
 
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from("projects")
     .insert({
       user_id: user.user.id,
@@ -30,13 +30,13 @@ export async function saveCloudProject(title: string, grid: BeadGrid, isPublic =
 }
 
 export async function deleteCloudProject(id: string) {
-  const { error } = await supabase.from("projects").delete().eq("id", id);
+  const { error } = await db().from("projects").delete().eq("id", id);
   if (error) throw error;
 }
 
 export async function getCommunityFeed(sort: "latest" | "likes" | "comments" | "bookmarks" = "latest") {
   const column = sort === "latest" ? "created_at" : `${sort}_count`;
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from("projects")
     .select("*")
     .eq("is_public", true)
@@ -47,10 +47,10 @@ export async function getCommunityFeed(sort: "latest" | "likes" | "comments" | "
 }
 
 export async function toggleLike(projectId: string) {
-  const { data: user } = await supabase.auth.getUser();
+  const { data: user } = await supabase!.auth.getUser();
   if (!user.user) throw new Error("请先登录");
 
-  const { data: existing } = await supabase
+  const { data: existing } = await db()
     .from("likes")
     .select("*")
     .eq("project_id", projectId)
@@ -58,18 +58,18 @@ export async function toggleLike(projectId: string) {
     .maybeSingle();
 
   if (existing) {
-    await supabase.from("likes").delete().eq("id", existing.id);
-    await supabase.rpc("decrement_likes", { project_id: projectId });
+    await db().from("likes").delete().eq("id", existing.id);
+    await db().rpc("decrement_likes", { project_id: projectId });
   } else {
-    await supabase.from("likes").insert({ project_id: projectId, user_id: user.user.id });
-    await supabase.rpc("increment_likes", { project_id: projectId });
+    await db().from("likes").insert({ project_id: projectId, user_id: user.user.id });
+    await db().rpc("increment_likes", { project_id: projectId });
   }
 }
 
 export async function hasUserLiked(projectId: string): Promise<boolean> {
-  const { data: user } = await supabase.auth.getUser();
+  const { data: user } = await supabase!.auth.getUser();
   if (!user.user) return false;
-  const { data } = await supabase
+  const { data } = await db()
     .from("likes")
     .select("*")
     .eq("project_id", projectId)
@@ -79,7 +79,7 @@ export async function hasUserLiked(projectId: string): Promise<boolean> {
 }
 
 export async function getComments(projectId: string) {
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from("comments")
     .select("*")
     .eq("project_id", projectId)
@@ -89,20 +89,20 @@ export async function getComments(projectId: string) {
 }
 
 export async function addComment(projectId: string, content: string) {
-  const { data: user } = await supabase.auth.getUser();
+  const { data: user } = await supabase!.auth.getUser();
   if (!user.user) throw new Error("请先登录");
-  const { error } = await supabase
+  const { error } = await db()
     .from("comments")
     .insert({ project_id: projectId, user_id: user.user.id, content });
   if (error) throw error;
-  await supabase.rpc("increment_comments", { project_id: projectId });
+  await db().rpc("increment_comments", { project_id: projectId });
 }
 
 export async function toggleBookmark(projectId: string) {
-  const { data: user } = await supabase.auth.getUser();
+  const { data: user } = await supabase!.auth.getUser();
   if (!user.user) throw new Error("请先登录");
 
-  const { data: existing } = await supabase
+  const { data: existing } = await db()
     .from("bookmarks")
     .select("*")
     .eq("project_id", projectId)
@@ -110,10 +110,10 @@ export async function toggleBookmark(projectId: string) {
     .maybeSingle();
 
   if (existing) {
-    await supabase.from("bookmarks").delete().eq("id", existing.id);
-    await supabase.rpc("decrement_bookmarks", { project_id: projectId });
+    await db().from("bookmarks").delete().eq("id", existing.id);
+    await db().rpc("decrement_bookmarks", { project_id: projectId });
   } else {
-    await supabase.from("bookmarks").insert({ project_id: projectId, user_id: user.user.id });
-    await supabase.rpc("increment_bookmarks", { project_id: projectId });
+    await db().from("bookmarks").insert({ project_id: projectId, user_id: user.user.id });
+    await db().rpc("increment_bookmarks", { project_id: projectId });
   }
 }
