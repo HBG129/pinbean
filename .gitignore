@@ -23,5 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
+# env
+.env
+
 # AI agent
 .reasonix
