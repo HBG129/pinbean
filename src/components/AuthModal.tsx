@@ -18,10 +18,24 @@ export function AuthModal({ open, onClose }: Props) {
     setBusy(true);
     try {
       if (tab === "register") {
-        const { error } = await supabase!.auth.signUp({ email, password });
-        if (error) throw error;
-        setMsg("注册成功！请检查邮箱确认链接，或直接登录。");
-        setTab("login");
+        // try login first — if already registered, auto-signin
+        const { data: signInData, error: signInErr } = await supabase!.auth.signInWithPassword({ email, password });
+        if (signInData.user) {
+          onClose();
+          setBusy(false);
+          return;
+        }
+        // new user → sign up
+        const { error: signUpError } = await supabase!.auth.signUp({ email, password });
+        if (signUpError) {
+          if (signInErr?.message?.includes("Invalid login")) {
+            setMsg("该邮箱已注册，但密码错误。请切换登录重试。");
+          } else {
+            throw signUpError;
+          }
+        } else {
+          setMsg("注册成功！如果开启了邮箱确认，请检查收件箱。");
+        }
       } else {
         const { error } = await supabase!.auth.signInWithPassword({ email, password });
         if (error) throw error;

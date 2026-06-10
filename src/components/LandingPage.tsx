@@ -116,14 +116,36 @@ export function LandingPage() {
 
     try {
       if (tab === "register") {
-        const { error } = await supabase!.auth.signUp({
+        // try login first — if email exists, auto-signin
+        const { data: signInData, error: signInErr } = await supabase!.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (signInData.user) {
+          // already registered → logged in successfully
+          if (remember) localStorage.setItem("pinbean_remember_email", email.trim());
+          else localStorage.removeItem("pinbean_remember_email");
+          setBusy(false);
+          return;
+        }
+        // not an existing user or wrong password → try sign up
+        const { error: signUpError } = await supabase!.auth.signUp({
           email: email.trim(),
           password,
           options: { data: { username: email.split("@")[0] } },
         });
-        if (error) throw error;
-        setMsg("注册成功！请检查邮箱确认链接，或直接切换登录。");
-        setTab("login");
+        if (signUpError) {
+          // if user exists but password wrong (from sign-in attempt)
+          if (signInErr?.message?.includes("Invalid login")) {
+            setMsg("该邮箱已注册，但密码错误。请切换到登录重试。");
+          } else {
+            throw signUpError;
+          }
+        } else {
+          // new user created and auto-signed in (email confirm disabled)
+          if (remember) localStorage.setItem("pinbean_remember_email", email.trim());
+          else localStorage.removeItem("pinbean_remember_email");
+        }
       } else {
         const { error } = await supabase!.auth.signInWithPassword({
           email: email.trim(),
