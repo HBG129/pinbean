@@ -11,7 +11,7 @@ export async function getMyProjects(): Promise<CloudProject[]> {
   return data || [];
 }
 
-export async function saveCloudProject(title: string, grid: BeadGrid, isPublic = false) {
+export async function saveCloudProject(title: string, grid: BeadGrid, isPublic = false, description?: string) {
   const { data: user } = await supabase!.auth.getUser();
   if (!user.user) throw new Error("请先登录");
 
@@ -22,6 +22,7 @@ export async function saveCloudProject(title: string, grid: BeadGrid, isPublic =
       title,
       grid: JSON.stringify(grid),
       is_public: isPublic,
+      description: description || null,
     })
     .select()
     .single();

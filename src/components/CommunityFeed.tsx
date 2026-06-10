@@ -230,20 +230,26 @@ export function CommunityFeed({ onCreatePublish }: { onCreatePublish?: () => voi
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: "spring", stiffness: 300, damping: 28 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative max-h-[90vh] max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl dark:bg-stone-800"
+              className="relative max-h-[90vh] w-[95vw] max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl dark:bg-stone-800"
             >
               <button
                 onClick={() => setExpanded(null)}
-                className="absolute right-4 top-4 rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700"
+                className="absolute right-4 top-4 z-10 rounded-xl bg-white/80 p-1.5 text-stone-400 backdrop-blur hover:bg-stone-100 dark:bg-stone-700/80 dark:hover:bg-stone-600"
               >
                 <X size={18} />
               </button>
-              <p className="text-xl font-black dark:text-stone-100">{expanded.title}</p>
+
+              {/* project info */}
+              <p className="pr-8 text-xl font-black dark:text-stone-100">{expanded.title}</p>
+              {expanded.description && (
+                <p className="mt-1 text-sm text-stone-500 dark:text-stone-400 leading-relaxed">{expanded.description}</p>
+              )}
+
               {expanded.grid && (() => {
                 let g: { width: number; height: number; cells: string[] } | null = null;
                 try { g = JSON.parse(expanded.grid) as typeof g; } catch { g = null; }
                 return g ? (
-                  <div className="mt-4 flex justify-center rounded-2xl bg-stone-50 p-4 dark:bg-stone-800/50">
+                  <div className="mt-4 flex justify-center rounded-2xl bg-stone-50 p-3 dark:bg-stone-800/50 overflow-auto">
                     <LargeGrid grid={g} colorMap={colorMap} />
                   </div>
                 ) : null;
@@ -407,7 +413,7 @@ function LargeGrid({
   grid: { width: number; height: number; cells: string[] };
   colorMap: Map<string, { hex: string }>;
 }) {
-  const maxDim = 300;
+  const maxDim = 500;
   const cellSize = Math.max(3, Math.floor(maxDim / Math.max(grid.width, grid.height)));
   const totalW = grid.width * cellSize;
   const totalH = grid.height * cellSize;

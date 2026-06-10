@@ -32,6 +32,7 @@ export type CloudProject = {
   id: string;
   user_id: string;
   title: string;
+  description: string | null;
   grid: string;
   thumbnail: string | null;
   is_public: boolean;

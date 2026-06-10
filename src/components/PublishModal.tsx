@@ -51,7 +51,7 @@ export function PublishModal({ open, onClose, currentGrid, localProjects, onPubl
 
       if (!grid) throw new Error("没有可发布的作品");
 
-      await saveCloudProject(title || "未命名", grid, true);
+      await saveCloudProject(title || "未命名", grid, true, description.trim() || undefined);
       onPublished();
       onClose();
 
