@@ -33,6 +33,7 @@ export type SidebarContentProps = {
     canRedo: boolean;
   };
   onFileChange: (file: File) => void;
+  onSampleSelect: (sampleId: string) => void;
   onWidthChange: (w: number) => void;
   onHeightChange: (h: number) => void;
   onSizePresetChange: (preset: SizePreset) => void;
@@ -58,7 +59,7 @@ export function SidebarContent({
   loading, imageSizeText, palette,
   usingCustomPalette, selectedColorId, replaceFrom, replaceTo,
   stats, grid, projectTitle, projects, gridState,
-  onFileChange, onWidthChange, onHeightChange, onSizePresetChange,
+  onFileChange, onSampleSelect, onWidthChange, onHeightChange, onSizePresetChange,
   onLockAspectRatioChange, onColorComplexityChange, onGenerate,
   onSelectedColorChange, onReplaceFromChange, onReplaceToChange,
   onReplaceColor, onPaletteCsvChange, onResetPalette,
@@ -80,6 +81,7 @@ export function SidebarContent({
         imageSizeText={imageSizeText}
         palette={palette}
         onFileChange={onFileChange}
+        onSampleSelect={onSampleSelect}
         onWidthChange={onWidthChange}
         onHeightChange={onHeightChange}
         onSizePresetChange={onSizePresetChange}

@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { Sun, Moon, Menu, X, User, Home, Globe } from "lucide-react";
 import { beadColors221 } from "./data/beadColors221";
+import { sampleImages, sampleToFile } from "./data/sampleImages";
 import type { BeadGrid } from "./types/bead";
 import {
   getColorStats,
@@ -156,6 +157,14 @@ function AppShell() {
     img.src = url;
   }
 
+  function handleSampleSelect(sampleId: string) {
+    const sample = sampleImages.find((item) => item.id === sampleId);
+    if (!sample) return;
+    handleFileChange(sampleToFile(sample));
+    setProjectTitle(sample.title);
+    showToast("success", `已载入示例：${sample.title}`);
+  }
+
   function handleSizePresetChange(nextPreset: SizePreset) {
     setSizePreset(nextPreset);
     if (!imageInfo || nextPreset === "custom") return;
@@ -230,6 +239,7 @@ function AppShell() {
     stats, grid, projectTitle, projects,
     gridState: { undo: gridState.undo, redo: gridState.redo, canUndo: gridState.canUndo, canRedo: gridState.canRedo },
     onFileChange: handleFileChange, onWidthChange: handleWidthChange, onHeightChange: handleHeightChange,
+    onSampleSelect: handleSampleSelect,
     onSizePresetChange: handleSizePresetChange, onLockAspectRatioChange: setLockAspectRatio,
     onColorComplexityChange: setColorComplexity,
     onGenerate: handleGenerate, onSelectedColorChange: setSelectedColorId,

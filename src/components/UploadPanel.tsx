@@ -4,6 +4,7 @@ import type { ColorComplexity } from "../lib/colorReduction";
 import type { ImageInfo, SizePreset } from "../lib/editorSizing";
 import { GenerationSummary } from "./GenerationSummary";
 import { SizePresetControl } from "./SizePresetControl";
+import { sampleImages } from "../data/sampleImages";
 
 export type UploadPanelProps = {
   file: File | null;
@@ -18,6 +19,7 @@ export type UploadPanelProps = {
   imageSizeText: string;
   palette: BeadColor[];
   onFileChange: (file: File) => void;
+  onSampleSelect: (sampleId: string) => void;
   onWidthChange: (width: number) => void;
   onHeightChange: (height: number) => void;
   onSizePresetChange: (preset: SizePreset) => void;
@@ -39,6 +41,7 @@ export function UploadPanel({
   imageSizeText,
   palette,
   onFileChange,
+  onSampleSelect,
   onWidthChange,
   onHeightChange,
   onSizePresetChange,
@@ -75,6 +78,35 @@ export function UploadPanel({
           />
         </div>
       )}
+
+      <div className="mt-4">
+        <p className="mb-2 text-xs font-black uppercase tracking-wide text-stone-400">
+          试试示例
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {sampleImages.map((sample) => (
+            <button
+              key={sample.id}
+              type="button"
+              onClick={() => onSampleSelect(sample.id)}
+              className="group flex items-center gap-2 rounded-2xl border border-stone-200 bg-white p-2 text-left transition hover:border-orange-300 hover:bg-orange-50 active:scale-[0.98] dark:border-stone-700 dark:bg-stone-800/70 dark:hover:bg-orange-900/20"
+            >
+              <span
+                className="h-8 w-8 shrink-0 rounded-xl border border-stone-200"
+                style={{ backgroundColor: sample.accent }}
+              />
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-black text-stone-700 dark:text-stone-100">
+                  {sample.title}
+                </span>
+                <span className="block truncate text-[11px] text-stone-400">
+                  {sample.subtitle}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {imageSizeText && (
         <div className="mt-3 rounded-2xl bg-orange-50 px-3 py-2 text-xs leading-5 text-stone-600 dark:bg-orange-900/20 dark:text-stone-300">
