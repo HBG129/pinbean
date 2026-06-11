@@ -35,6 +35,7 @@ import { PublishModal } from "./components/PublishModal";
 import { ProfilePage } from "./components/ProfilePage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LandingPage } from "./components/LandingPage";
+import { EditorToolbar } from "./components/EditorToolbar";
 import { hasSupabase } from "./lib/supabase";
 import { saveCloudProject, getUnreadCount } from "./lib/cloudProjects";
 import {
@@ -93,6 +94,7 @@ function AppShell() {
   }, [user]);
 
   const colorMap = useMemo(() => new Map(palette.map((c) => [c.id, c])), [palette]);
+  const selectedColor = colorMap.get(selectedColorId);
   const stats = useMemo(() => (grid ? getColorStats(grid, palette) : []), [grid, palette]);
   const displayCellSize = useMemo(() => {
     if (!grid) return zoom;
@@ -385,6 +387,22 @@ function AppShell() {
                   </button>
                 </div>
               )}
+              <EditorToolbar
+                canUndo={gridState.canUndo}
+                canRedo={gridState.canRedo}
+                zoom={zoom}
+                fitView={fitView}
+                showColorCode={showColorCode}
+                selectedColor={selectedColor}
+                onUndo={gridState.undo}
+                onRedo={gridState.redo}
+                onZoomChange={(nextZoom) => {
+                  setFitView(false);
+                  setZoom(nextZoom);
+                }}
+                onFitViewChange={setFitView}
+                onShowColorCodeChange={setShowColorCode}
+              />
               <BeadCanvas
                 grid={grid} palette={palette} colorMap={colorMap}
                 displayCellSize={displayCellSize} showColorCode={showColorCode} fitView={fitView}

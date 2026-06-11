@@ -89,7 +89,7 @@ export function SidebarContent({
       />
 
       {/* Undo / Redo */}
-      <section className="rounded-3xl bg-white p-5 shadow-sm dark:bg-stone-800 dark:shadow-none dark:ring-1 dark:ring-stone-700">
+      <section className="hidden">
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={gridState.undo}
