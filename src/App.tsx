@@ -37,6 +37,10 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LandingPage } from "./components/LandingPage";
 import { hasSupabase } from "./lib/supabase";
 import { saveCloudProject, getUnreadCount } from "./lib/cloudProjects";
+import {
+  getRecommendedGridSize,
+  type ImageInfo,
+} from "./lib/editorSizing";
 
 type Page = "editor" | "community" | "profile";
 
@@ -51,6 +55,7 @@ function AppShell() {
   const [usingCustomPalette, setUsingCustomPalette] = useState(() => hasCustomPalette());
   const [width, setWidth] = useState(100);
   const [height, setHeight] = useState(100);
+  const [imageInfo, setImageInfo] = useState<ImageInfo | null>(null);
   const [imageSizeText, setImageSizeText] = useState("");
   const [selectedColorId, setSelectedColorId] = useState(() => getActivePalette()[0]?.id || beadColors221[0].id);
   const [replaceFrom, setReplaceFrom] = useState("");
@@ -87,7 +92,7 @@ function AppShell() {
   }, [fitView, grid, zoom]);
 
   async function handleGenerate() {
-    if (!file) return;
+    if (!file || !imageInfo) return;
     setLoading(true);
     try {
       const sw = Math.max(1, Math.min(width, 300));
@@ -106,6 +111,15 @@ function AppShell() {
     setPreviewUrl(url);
     const img = new Image();
     img.onload = () => {
+      const nextInfo = { width: img.naturalWidth, height: img.naturalHeight };
+      const recommended = getRecommendedGridSize(nextInfo, "medium");
+      setImageInfo(nextInfo);
+      setWidth(recommended.width);
+      setHeight(recommended.height);
+      setImageSizeText(
+        `原图尺寸：${nextInfo.width} x ${nextInfo.height}，推荐：${recommended.width} x ${recommended.height}`
+      );
+      return;
       const maxSide = 120, minSide = 20;
       let w2 = maxSide, h2 = maxSide;
       if (img.width >= img.height) h2 = Math.round((img.height / img.width) * maxSide);
@@ -116,6 +130,7 @@ function AppShell() {
       setImageSizeText(`原图尺寸：${img.naturalWidth} × ${img.naturalHeight}，已按比例推荐：${w2} × ${h2}`);
     };
     img.onerror = () => setImageSizeText("无法读取原图尺寸");
+    img.addEventListener("error", () => setImageInfo(null));
     img.src = url;
   }
 
