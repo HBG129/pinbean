@@ -8,8 +8,10 @@ type PaletteColor = {
 
 type ExportPngOptions = {
   showCode?: boolean;
+  showGrid?: boolean;
   cellSize?: number;
   fileName?: string;
+  background?: string;
 };
 
 function getReadableTextColor(hex: string) {
@@ -39,7 +41,9 @@ export function exportBeadGridPng(
   options: ExportPngOptions = {}
 ) {
   const showCode = options.showCode ?? false;
+  const showGrid = options.showGrid ?? true;
   const cellSize = options.cellSize ?? (showCode ? 34 : 18);
+  const background = options.background ?? "#ffffff";
   const fileName =
     options.fileName ?? (showCode ? "bead-grid-with-code.png" : "bead-grid.png");
 
@@ -55,7 +59,7 @@ export function exportBeadGridPng(
     throw new Error("浏览器不支持 Canvas 导出");
   }
 
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   for (let y = 0; y < grid.height; y++) {
@@ -70,9 +74,11 @@ export function exportBeadGridPng(
       ctx.fillStyle = color?.hex || "#ffffff";
       ctx.fillRect(left, top, cellSize, cellSize);
 
-      ctx.strokeStyle = "rgba(0, 0, 0, 0.16)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(left, top, cellSize, cellSize);
+      if (showGrid) {
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.16)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(left, top, cellSize, cellSize);
+      }
 
       if (showCode && color && cellSize >= 24) {
         ctx.fillStyle = getReadableTextColor(color.hex);

@@ -36,6 +36,7 @@ import { ProfilePage } from "./components/ProfilePage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LandingPage } from "./components/LandingPage";
 import { EditorToolbar } from "./components/EditorToolbar";
+import { ExportPanel } from "./components/ExportPanel";
 import { hasSupabase } from "./lib/supabase";
 import { saveCloudProject, getUnreadCount } from "./lib/cloudProjects";
 import {
@@ -412,7 +413,18 @@ function AppShell() {
                 onZoomIn={() => { setFitView(false); setZoom((v) => Math.min(32, v + 1)); }}
                 onZoomOut={() => { setFitView(false); setZoom((v) => Math.max(3, v - 1)); }}
               />
-              <ColorStatsPanel grid={grid} stats={stats} />
+              <ColorStatsPanel
+                grid={grid}
+                stats={stats}
+                selectedColorId={selectedColorId}
+                onSelectedColorChange={setSelectedColorId}
+              />
+              <ExportPanel
+                grid={grid}
+                palette={palette}
+                stats={stats}
+                projectTitle={projectTitle}
+              />
             </section>
           </div>
         </main>

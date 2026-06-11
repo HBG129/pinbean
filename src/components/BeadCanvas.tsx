@@ -51,7 +51,7 @@ export function BeadCanvas({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="hidden">
           <button
             onClick={() => grid && exportBeadGridPng(grid, palette, { showCode: false, cellSize: 18, fileName: "拼豆图.png" })}
             disabled={!grid}
