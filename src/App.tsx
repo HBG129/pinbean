@@ -37,6 +37,8 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LandingPage } from "./components/LandingPage";
 import { EditorToolbar } from "./components/EditorToolbar";
 import { ExportPanel } from "./components/ExportPanel";
+import { ToastRegion } from "./components/Toast";
+import { useToasts } from "./hooks/useToasts";
 import { hasSupabase } from "./lib/supabase";
 import { saveCloudProject, getUnreadCount } from "./lib/cloudProjects";
 import {
@@ -82,6 +84,7 @@ function AppShell() {
   const [publishOpen, setPublishOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const { dark, toggle: toggleDark } = useDarkMode();
+  const { toasts, showToast } = useToasts();
   const grid = gridState.value;
 
   // poll unread count
@@ -191,8 +194,10 @@ function AppShell() {
       setUsingCustomPalette(true);
       const first = colors[0]?.id;
       if (first) { setSelectedColorId(first); setReplaceTo(first); }
-      alert(`色卡导入成功：共 ${colors.length} 色`);
-    } catch (e) { alert(e instanceof Error ? e.message : "CSV 导入失败"); }
+      showToast("success", `色卡导入成功：共 ${colors.length} 色`);
+    } catch (e) {
+      showToast("error", e instanceof Error ? e.message : "CSV 导入失败");
+    }
   }
 
   function handleResetPalette() {
@@ -201,7 +206,7 @@ function AppShell() {
     setUsingCustomPalette(false);
     const first = beadColors221[0]?.id;
     if (first) { setSelectedColorId(first); setReplaceTo(first); }
-    alert('已恢复默认内置色卡。请重新点击"生成拼豆图"应用默认色卡。');
+    showToast("success", '已恢复默认色卡，请重新点击"生成拼豆图"应用默认色卡。');
   }
 
   function handleSaveProject() {
@@ -209,10 +214,11 @@ function AppShell() {
     // always save locally
     saveLocalProject(projectTitle || "未命名作品", grid);
     setProjects(getLocalProjects());
+    showToast("success", "作品已保存到本地");
     // also save to cloud if logged in
     if (user && hasSupabase()) {
       saveCloudProject(projectTitle || "未命名作品", grid, false)
-        .catch(() => alert("云端保存失败，但已存到本地"));
+        .catch(() => showToast("error", "云端保存失败，但已存到本地"));
     }
   }
 
@@ -242,6 +248,7 @@ function AppShell() {
 
       {/* Auth Modal */}
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      <ToastRegion toasts={toasts} />
 
       {/* Publish Modal */}
       <PublishModal
