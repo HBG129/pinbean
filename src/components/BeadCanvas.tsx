@@ -1,6 +1,7 @@
 import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import type { BeadColor, BeadGrid } from "../types/bead";
 import { exportBeadGridPng } from "../lib/exportPng";
+import { EMPTY_CELL_ID } from "../lib/imageToBeads";
 import { CanvasGrid } from "./CanvasGrid";
 
 export type BeadCanvasProps = {
@@ -131,16 +132,17 @@ export function BeadCanvas({
           >
             {grid.cells.map((colorId, index) => {
               const color = colorMap.get(colorId);
+              const empty = colorId === EMPTY_CELL_ID;
               return (
                 <button
                   key={index}
                   onClick={() => onCellClick(index)}
-                  title={color ? `${color.code} ${color.hex}` : colorId}
+                  title={empty ? "空白格" : color ? `${color.code} ${color.hex}` : colorId}
                   className="flex items-center justify-center overflow-hidden border border-black/5 font-black leading-none transition duration-150 hover:brightness-90 dark:border-white/10"
                   style={{
                     width: displayCellSize,
                     height: displayCellSize,
-                    backgroundColor: color?.hex || "#ffffff",
+                    backgroundColor: empty ? "transparent" : color?.hex || "#ffffff",
                     color: color ? getReadableTextColor(color.hex) : "#111111",
                     fontSize: Math.max(7, Math.min(11, displayCellSize * 0.36)),
                   }}

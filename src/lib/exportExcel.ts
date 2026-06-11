@@ -1,15 +1,15 @@
-import * as XLSX from "xlsx";
 import type { BeadGrid, ColorStat } from "../types/bead";
 
 type ExportExcelMetadata = {
   title?: string;
 };
 
-export function exportMaterialExcel(
+export async function exportMaterialExcel(
   grid: BeadGrid,
   stats: ColorStat[],
   metadata: ExportExcelMetadata = {}
 ) {
+  const XLSX = await import("xlsx");
   const sortedStats = [...stats].sort((a, b) => b.count - a.count);
   const materialSheet = sortedStats.map((item) => ({
     色号: item.color.code,

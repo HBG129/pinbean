@@ -1,5 +1,6 @@
 import type { BeadColor, BeadGrid } from "../types/bead";
 import { findNearestBeadColor } from "./colorMatch";
+import { EMPTY_CELL_ID } from "./imageToBeads";
 
 export type ColorComplexity = "simple" | "balanced" | "detailed";
 
@@ -15,7 +16,10 @@ export function reduceGridColors(
   maxColors: number
 ): BeadGrid {
   const counts = new Map<string, number>();
-  for (const id of grid.cells) counts.set(id, (counts.get(id) ?? 0) + 1);
+  for (const id of grid.cells) {
+    if (id === EMPTY_CELL_ID) continue;
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
 
   if (counts.size <= maxColors) return grid;
 
@@ -31,6 +35,7 @@ export function reduceGridColors(
 
   const cells = grid.cells.map((id) => {
     if (keptIds.has(id)) return id;
+    if (id === EMPTY_CELL_ID) return id;
     const source = colorById.get(id);
     if (!source) return id;
     const cached = remap.get(id);

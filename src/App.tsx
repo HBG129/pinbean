@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect } from "react";
-import { Sun, Moon, Menu, X, User, Home, Globe } from "lucide-react";
+import { lazy, Suspense, useMemo, useState, useEffect } from "react";
+import { Sun, Moon, Menu, X, User, Home, Globe, Save } from "lucide-react";
 import { beadColors221 } from "./data/beadColors221";
 import { sampleImages, sampleToFile } from "./data/sampleImages";
 import type { BeadGrid } from "./types/bead";
@@ -31,11 +31,7 @@ import { CursorSpotlight } from "./components/CursorSpotlight";
 import { AuthProvider } from "./components/AuthProvider";
 import { useAuth } from "./hooks/useAuth";
 import { AuthModal } from "./components/AuthModal";
-import { CommunityFeed } from "./components/CommunityFeed";
-import { PublishModal } from "./components/PublishModal";
-import { ProfilePage } from "./components/ProfilePage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { LandingPage } from "./components/LandingPage";
 import { EditorToolbar } from "./components/EditorToolbar";
 import { ExportPanel } from "./components/ExportPanel";
 import { ToastRegion } from "./components/Toast";
@@ -55,6 +51,27 @@ import {
 } from "./lib/colorReduction";
 
 type Page = "editor" | "community" | "profile";
+
+const CommunityFeed = lazy(() =>
+  import("./components/CommunityFeed").then((module) => ({ default: module.CommunityFeed }))
+);
+const PublishModal = lazy(() =>
+  import("./components/PublishModal").then((module) => ({ default: module.PublishModal }))
+);
+const ProfilePage = lazy(() =>
+  import("./components/ProfilePage").then((module) => ({ default: module.ProfilePage }))
+);
+const LandingPage = lazy(() =>
+  import("./components/LandingPage").then((module) => ({ default: module.LandingPage }))
+);
+
+function PageFallback() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-stone-300 border-t-orange-500" />
+    </div>
+  );
+}
 
 function AppShell() {
   const { user } = useAuth();
@@ -114,7 +131,13 @@ function AppShell() {
     try {
       const sw = Math.max(1, Math.min(width, 300));
       const sh = Math.max(1, Math.min(height, 300));
-      const result = await imageToBeadGrid({ file, width: sw, height: sh, colors: palette });
+      const result = await imageToBeadGrid({
+        file,
+        width: sw,
+        height: sh,
+        colors: palette,
+        dither: colorComplexity === "detailed",
+      });
       const reduced = reduceGridColors(
         result,
         palette,
@@ -126,13 +149,13 @@ function AppShell() {
     } finally { setLoading(false); }
   }
 
-  function handleFileChange(nextFile: File) {
+  function handleFileChange(nextFile: File, autoGenerate = false) {
     setFile(nextFile);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     const url = URL.createObjectURL(nextFile);
     setPreviewUrl(url);
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
       const nextInfo = { width: img.naturalWidth, height: img.naturalHeight };
       const recommended = getRecommendedGridSize(nextInfo, "medium");
       setImageInfo(nextInfo);
@@ -142,15 +165,27 @@ function AppShell() {
       setImageSizeText(
         `原图尺寸：${nextInfo.width} x ${nextInfo.height}，推荐：${recommended.width} x ${recommended.height}`
       );
-      return;
-      const maxSide = 120, minSide = 20;
-      let w2 = maxSide, h2 = maxSide;
-      if (img.width >= img.height) h2 = Math.round((img.height / img.width) * maxSide);
-      else w2 = Math.round((img.width / img.height) * maxSide);
-      w2 = Math.max(minSide, Math.min(300, w2));
-      h2 = Math.max(minSide, Math.min(300, h2));
-      setWidth(w2); setHeight(h2);
-      setImageSizeText(`原图尺寸：${img.naturalWidth} × ${img.naturalHeight}，已按比例推荐：${w2} × ${h2}`);
+      if (autoGenerate) {
+        setLoading(true);
+        try {
+          const result = await imageToBeadGrid({
+            file: nextFile,
+            width: recommended.width,
+            height: recommended.height,
+            colors: palette,
+            dither: colorComplexity === "detailed",
+          });
+          const reduced = reduceGridColors(
+            result,
+            palette,
+            COLOR_COMPLEXITY_LIMITS[colorComplexity]
+          );
+          gridState.reset(reduced);
+          setFitView(true);
+        } finally {
+          setLoading(false);
+        }
+      }
     };
     img.onerror = () => setImageSizeText("无法读取原图尺寸");
     img.addEventListener("error", () => setImageInfo(null));
@@ -160,7 +195,7 @@ function AppShell() {
   function handleSampleSelect(sampleId: string) {
     const sample = sampleImages.find((item) => item.id === sampleId);
     if (!sample) return;
-    handleFileChange(sampleToFile(sample));
+    handleFileChange(sampleToFile(sample), true);
     setProjectTitle(sample.title);
     showToast("success", `已载入示例：${sample.title}`);
   }
@@ -261,13 +296,15 @@ function AppShell() {
       <ToastRegion toasts={toasts} />
 
       {/* Publish Modal */}
-      <PublishModal
-        open={publishOpen}
-        onClose={() => setPublishOpen(false)}
-        currentGrid={grid}
-        localProjects={projects}
-        onPublished={() => setPage("community")}
-      />
+      <Suspense fallback={null}>
+        <PublishModal
+          open={publishOpen}
+          onClose={() => setPublishOpen(false)}
+          currentGrid={grid}
+          localProjects={projects}
+          onPublished={() => setPage("community")}
+        />
+      </Suspense>
 
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-stone-200 bg-white/85 backdrop-blur dark:border-stone-700 dark:bg-stone-800/85">
@@ -357,27 +394,31 @@ function AppShell() {
       {/* === PROFILE PAGE === */}
       {page === "profile" && (
         <main className="relative z-10 mx-auto max-w-[1200px] px-4 py-8 md:px-6">
-          <ProfilePage onOpenInEditor={(g, title) => {
-            gridState.reset(g);
-            setWidth(g.width);
-            setHeight(g.height);
-            setProjectTitle(title);
-            setFitView(true);
-            setPage("editor");
-          }} />
+          <Suspense fallback={<PageFallback />}>
+            <ProfilePage onOpenInEditor={(g, title) => {
+              gridState.reset(g);
+              setWidth(g.width);
+              setHeight(g.height);
+              setProjectTitle(title);
+              setFitView(true);
+              setPage("editor");
+            }} />
+          </Suspense>
         </main>
       )}
 
       {/* === COMMUNITY PAGE === */}
       {page === "community" && (
         <main className="relative z-10 mx-auto max-w-[1200px] px-4 py-8 md:px-6">
-          <CommunityFeed onCreatePublish={() => setPublishOpen(true)} />
+          <Suspense fallback={<PageFallback />}>
+            <CommunityFeed onCreatePublish={() => setPublishOpen(true)} />
+          </Suspense>
         </main>
       )}
 
       {/* === EDITOR PAGE === */}
       {page === "editor" && (
-        <main className="relative z-10 mx-auto max-w-[1600px] px-4 py-6 md:px-6">
+        <main className="relative z-10 mx-auto max-w-[1600px] px-4 pb-24 pt-6 md:px-6 xl:pb-6">
           {/* mobile sidebar overlay */}
           {sidebarOpen && (
             <div className="fixed inset-0 z-30 xl:hidden" onClick={() => setSidebarOpen(false)}>
@@ -444,6 +485,34 @@ function AppShell() {
               />
             </section>
           </div>
+          <div className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-3 gap-2 rounded-2xl border border-stone-200 bg-white/92 p-2 shadow-2xl backdrop-blur xl:hidden dark:border-stone-700 dark:bg-stone-800/92">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-stone-100 px-2 py-2 text-xs font-black text-stone-700 dark:bg-stone-700 dark:text-stone-100"
+            >
+              <Menu size={15} />
+              设置
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveProject}
+              disabled={!grid}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-orange-500 px-2 py-2 text-xs font-black text-white disabled:bg-stone-300 dark:disabled:bg-stone-600"
+            >
+              <Save size={15} />
+              保存
+            </button>
+            <button
+              type="button"
+              onClick={() => setPublishOpen(true)}
+              disabled={!grid || !hasSupabase()}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-stone-900 px-2 py-2 text-xs font-black text-white disabled:bg-stone-300 dark:disabled:bg-stone-600"
+            >
+              <Globe size={15} />
+              发布
+            </button>
+          </div>
         </main>
       )}
     </div>
@@ -474,7 +543,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
   if (!user && hasSupabase()) {
-    return <LandingPage />;
+    return (
+      <Suspense fallback={<PageFallback />}>
+        <LandingPage />
+      </Suspense>
+    );
   }
   return <>{children}</>;
 }

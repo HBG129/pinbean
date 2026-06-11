@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from "react";
 import type { BeadColor, BeadGrid } from "../types/bead";
+import { EMPTY_CELL_ID } from "../lib/imageToBeads";
 
 type CanvasGridProps = {
   grid: BeadGrid;
@@ -62,7 +63,7 @@ export function CanvasGrid({
         const top = y * cellSize;
 
         // cell fill
-        ctx.fillStyle = color?.hex || "#ffffff";
+        ctx.fillStyle = colorId === EMPTY_CELL_ID ? "rgba(255,255,255,0)" : color?.hex || "#ffffff";
         ctx.fillRect(left, top, cellSize, cellSize);
 
         // cell border

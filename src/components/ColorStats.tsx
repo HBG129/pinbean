@@ -13,7 +13,7 @@ export function ColorStatsPanel({
   selectedColorId,
   onSelectedColorChange,
 }: ColorStatsPanelProps) {
-  const total = grid ? grid.width * grid.height : 0;
+  const total = stats.reduce((sum, item) => sum + item.count, 0);
 
   return (
     <section className="rounded-3xl bg-white p-5 shadow-sm dark:bg-stone-800 dark:shadow-none dark:ring-1 dark:ring-stone-700">

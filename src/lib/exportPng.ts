@@ -1,4 +1,5 @@
 import type { BeadGrid } from "../types/bead";
+import { EMPTY_CELL_ID } from "./imageToBeads";
 
 type PaletteColor = {
   id: string;
@@ -67,12 +68,15 @@ export function exportBeadGridPng(
       const index = y * grid.width + x;
       const colorId = grid.cells[index];
       const color = colorMap.get(colorId);
+      const empty = colorId === EMPTY_CELL_ID;
 
       const left = x * cellSize;
       const top = y * cellSize;
 
-      ctx.fillStyle = color?.hex || "#ffffff";
-      ctx.fillRect(left, top, cellSize, cellSize);
+      if (!empty) {
+        ctx.fillStyle = color?.hex || "#ffffff";
+        ctx.fillRect(left, top, cellSize, cellSize);
+      }
 
       if (showGrid) {
         ctx.strokeStyle = "rgba(0, 0, 0, 0.16)";
