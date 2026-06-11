@@ -1,6 +1,7 @@
 import { Undo2, Redo2, Save, Trash2, FolderOpen } from "lucide-react";
 import type { BeadColor, BeadGrid, ColorStat } from "../types/bead";
 import type { LocalProject } from "../lib/localProjects";
+import type { ImageInfo, SizePreset } from "../lib/editorSizing";
 import { UploadPanel } from "./UploadPanel";
 import { ColorReplacePanel } from "./ColorReplacePanel";
 
@@ -9,6 +10,9 @@ export type SidebarContentProps = {
   previewUrl: string;
   width: number;
   height: number;
+  imageInfo: ImageInfo | null;
+  sizePreset: SizePreset;
+  lockAspectRatio: boolean;
   loading: boolean;
   imageSizeText: string;
   palette: BeadColor[];
@@ -29,6 +33,8 @@ export type SidebarContentProps = {
   onFileChange: (file: File) => void;
   onWidthChange: (w: number) => void;
   onHeightChange: (h: number) => void;
+  onSizePresetChange: (preset: SizePreset) => void;
+  onLockAspectRatioChange: (locked: boolean) => void;
   onGenerate: () => void;
   onSelectedColorChange: (id: string) => void;
   onReplaceFromChange: (id: string) => void;
@@ -44,10 +50,12 @@ export type SidebarContentProps = {
 };
 
 export function SidebarContent({
-  file, previewUrl, width, height, loading, imageSizeText, palette,
+  file, previewUrl, width, height, imageInfo, sizePreset, lockAspectRatio,
+  loading, imageSizeText, palette,
   usingCustomPalette, selectedColorId, replaceFrom, replaceTo,
   stats, grid, projectTitle, projects, gridState,
-  onFileChange, onWidthChange, onHeightChange, onGenerate,
+  onFileChange, onWidthChange, onHeightChange, onSizePresetChange,
+  onLockAspectRatioChange, onGenerate,
   onSelectedColorChange, onReplaceFromChange, onReplaceToChange,
   onReplaceColor, onPaletteCsvChange, onResetPalette,
   onSaveProject, onOpenProject, onDeleteProject, onProjectTitleChange,
@@ -60,12 +68,17 @@ export function SidebarContent({
         previewUrl={previewUrl}
         width={width}
         height={height}
+        imageInfo={imageInfo}
+        sizePreset={sizePreset}
+        lockAspectRatio={lockAspectRatio}
         loading={loading}
         imageSizeText={imageSizeText}
         palette={palette}
         onFileChange={onFileChange}
         onWidthChange={onWidthChange}
         onHeightChange={onHeightChange}
+        onSizePresetChange={onSizePresetChange}
+        onLockAspectRatioChange={onLockAspectRatioChange}
         onGenerate={onGenerate}
       />
 

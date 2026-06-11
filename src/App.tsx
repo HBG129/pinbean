@@ -38,8 +38,10 @@ import { LandingPage } from "./components/LandingPage";
 import { hasSupabase } from "./lib/supabase";
 import { saveCloudProject, getUnreadCount } from "./lib/cloudProjects";
 import {
+  getAspectLockedSize,
   getRecommendedGridSize,
   type ImageInfo,
+  type SizePreset,
 } from "./lib/editorSizing";
 
 type Page = "editor" | "community" | "profile";
@@ -56,6 +58,8 @@ function AppShell() {
   const [width, setWidth] = useState(100);
   const [height, setHeight] = useState(100);
   const [imageInfo, setImageInfo] = useState<ImageInfo | null>(null);
+  const [sizePreset, setSizePreset] = useState<SizePreset>("medium");
+  const [lockAspectRatio, setLockAspectRatio] = useState(true);
   const [imageSizeText, setImageSizeText] = useState("");
   const [selectedColorId, setSelectedColorId] = useState(() => getActivePalette()[0]?.id || beadColors221[0].id);
   const [replaceFrom, setReplaceFrom] = useState("");
@@ -114,6 +118,7 @@ function AppShell() {
       const nextInfo = { width: img.naturalWidth, height: img.naturalHeight };
       const recommended = getRecommendedGridSize(nextInfo, "medium");
       setImageInfo(nextInfo);
+      setSizePreset("medium");
       setWidth(recommended.width);
       setHeight(recommended.height);
       setImageSizeText(
@@ -132,6 +137,36 @@ function AppShell() {
     img.onerror = () => setImageSizeText("无法读取原图尺寸");
     img.addEventListener("error", () => setImageInfo(null));
     img.src = url;
+  }
+
+  function handleSizePresetChange(nextPreset: SizePreset) {
+    setSizePreset(nextPreset);
+    if (!imageInfo || nextPreset === "custom") return;
+    const next = getRecommendedGridSize(imageInfo, nextPreset);
+    setWidth(next.width);
+    setHeight(next.height);
+  }
+
+  function handleWidthChange(nextWidth: number) {
+    setSizePreset("custom");
+    if (lockAspectRatio && imageInfo) {
+      const next = getAspectLockedSize({ image: imageInfo, nextWidth });
+      setWidth(next.width);
+      setHeight(next.height);
+      return;
+    }
+    setWidth(nextWidth);
+  }
+
+  function handleHeightChange(nextHeight: number) {
+    setSizePreset("custom");
+    if (lockAspectRatio && imageInfo) {
+      const next = getAspectLockedSize({ image: imageInfo, nextHeight });
+      setWidth(next.width);
+      setHeight(next.height);
+      return;
+    }
+    setHeight(nextHeight);
   }
 
   async function handlePaletteCsvChange(f: File) {
@@ -168,11 +203,13 @@ function AppShell() {
   }
 
   const sidebarProps: SidebarContentProps = {
-    file, previewUrl, width, height, loading, imageSizeText, palette,
+    file, previewUrl, width, height, imageInfo, sizePreset, lockAspectRatio,
+    loading, imageSizeText, palette,
     usingCustomPalette, selectedColorId, replaceFrom, replaceTo,
     stats, grid, projectTitle, projects,
     gridState: { undo: gridState.undo, redo: gridState.redo, canUndo: gridState.canUndo, canRedo: gridState.canRedo },
-    onFileChange: handleFileChange, onWidthChange: setWidth, onHeightChange: setHeight,
+    onFileChange: handleFileChange, onWidthChange: handleWidthChange, onHeightChange: handleHeightChange,
+    onSizePresetChange: handleSizePresetChange, onLockAspectRatioChange: setLockAspectRatio,
     onGenerate: handleGenerate, onSelectedColorChange: setSelectedColorId,
     onReplaceFromChange: setReplaceFrom, onReplaceToChange: setReplaceTo,
     onReplaceColor: () => { if (grid && replaceFrom && replaceTo) gridState.set(replaceColorInGrid(grid, replaceFrom, replaceTo)); },

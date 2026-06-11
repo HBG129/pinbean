@@ -1,17 +1,25 @@
 import { ImagePlus, RefreshCw } from "lucide-react";
 import type { BeadColor } from "../types/bead";
+import type { ImageInfo, SizePreset } from "../lib/editorSizing";
+import { GenerationSummary } from "./GenerationSummary";
+import { SizePresetControl } from "./SizePresetControl";
 
 export type UploadPanelProps = {
   file: File | null;
   previewUrl: string;
   width: number;
   height: number;
+  imageInfo: ImageInfo | null;
+  sizePreset: SizePreset;
+  lockAspectRatio: boolean;
   loading: boolean;
   imageSizeText: string;
   palette: BeadColor[];
   onFileChange: (file: File) => void;
   onWidthChange: (width: number) => void;
   onHeightChange: (height: number) => void;
+  onSizePresetChange: (preset: SizePreset) => void;
+  onLockAspectRatioChange: (locked: boolean) => void;
   onGenerate: () => void;
 };
 
@@ -20,12 +28,17 @@ export function UploadPanel({
   previewUrl,
   width,
   height,
+  imageInfo,
+  sizePreset,
+  lockAspectRatio,
   loading,
   imageSizeText,
   palette,
   onFileChange,
   onWidthChange,
   onHeightChange,
+  onSizePresetChange,
+  onLockAspectRatioChange,
   onGenerate,
 }: UploadPanelProps) {
   return (
@@ -64,7 +77,21 @@ export function UploadPanel({
         </div>
       )}
 
-      <div className="mt-5 grid grid-cols-2 gap-3">
+      <div className="mt-5 space-y-4">
+        <GenerationSummary imageInfo={imageInfo} width={width} height={height} />
+        <SizePresetControl
+          preset={sizePreset}
+          width={width}
+          height={height}
+          locked={lockAspectRatio}
+          onPresetChange={onSizePresetChange}
+          onWidthChange={onWidthChange}
+          onHeightChange={onHeightChange}
+          onLockedChange={onLockAspectRatioChange}
+        />
+      </div>
+
+      <div className="hidden">
         <label className="text-sm font-medium dark:text-stone-200">
           宽度
           <input
