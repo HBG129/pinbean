@@ -4,6 +4,7 @@ import { beadColors221 } from "./data/beadColors221";
 import { sampleImages, sampleToFile } from "./data/sampleImages";
 import type { BeadGrid } from "./types/bead";
 import {
+  EMPTY_CELL_ID,
   getColorStats,
   imageToBeadGrid,
   replaceColorInGrid,
@@ -32,7 +33,7 @@ import { AuthProvider } from "./components/AuthProvider";
 import { useAuth } from "./hooks/useAuth";
 import { AuthModal } from "./components/AuthModal";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { EditorToolbar } from "./components/EditorToolbar";
+import { EditorToolbar, type EditorToolMode } from "./components/EditorToolbar";
 import { ExportPanel } from "./components/ExportPanel";
 import { ToastRegion } from "./components/Toast";
 import { useToasts } from "./hooks/useToasts";
@@ -96,6 +97,7 @@ function AppShell() {
   const [zoom, setZoom] = useState(6);
   const [fitView, setFitView] = useState(true);
   const [showColorCode, setShowColorCode] = useState(false);
+  const [toolMode, setToolMode] = useState<EditorToolMode>("brush");
   const [projectTitle, setProjectTitle] = useState("我的拼豆作品");
   const [projects, setProjects] = useState<LocalProject[]>(() => getLocalProjects());
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -264,6 +266,26 @@ function AppShell() {
       saveCloudProject(projectTitle || "未命名作品", grid, false)
         .catch(() => showToast("error", "云端保存失败，但已存到本地"));
     }
+  }
+
+  function handleCanvasCellClick(index: number) {
+    if (!grid) return;
+
+    if (toolMode === "eyedropper") {
+      const colorId = grid.cells[index];
+      if (!colorId || colorId === EMPTY_CELL_ID) {
+        showToast("error", "空白格没有可吸取的颜色");
+        return;
+      }
+
+      const color = colorMap.get(colorId);
+      setSelectedColorId(colorId);
+      setToolMode("brush");
+      showToast("success", `已吸取颜色：${color?.code ?? colorId}`);
+      return;
+    }
+
+    gridState.set(updateSingleCell(grid, index, selectedColorId));
   }
 
   const sidebarProps: SidebarContentProps = {
@@ -453,6 +475,7 @@ function AppShell() {
                 fitView={fitView}
                 showColorCode={showColorCode}
                 selectedColor={selectedColor}
+                toolMode={toolMode}
                 onUndo={gridState.undo}
                 onRedo={gridState.redo}
                 onZoomChange={(nextZoom) => {
@@ -461,11 +484,12 @@ function AppShell() {
                 }}
                 onFitViewChange={setFitView}
                 onShowColorCodeChange={setShowColorCode}
+                onToolModeChange={setToolMode}
               />
               <BeadCanvas
                 grid={grid} palette={palette} colorMap={colorMap}
                 displayCellSize={displayCellSize} showColorCode={showColorCode} fitView={fitView}
-                onCellClick={(i) => { if (grid) gridState.set(updateSingleCell(grid, i, selectedColorId)); }}
+                onCellClick={handleCanvasCellClick}
                 onToggleColorCode={() => setShowColorCode((v) => !v)}
                 onFitView={() => setFitView(true)}
                 onZoomIn={() => { setFitView(false); setZoom((v) => Math.min(32, v + 1)); }}

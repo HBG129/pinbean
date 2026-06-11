@@ -1,6 +1,8 @@
-import { Eye, EyeOff, Maximize2, Minus, Plus, Redo2, Undo2 } from "lucide-react";
+import { Eye, EyeOff, Maximize2, Minus, Pipette, Plus, Redo2, Undo2 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { BeadColor } from "../types/bead";
+
+export type EditorToolMode = "brush" | "eyedropper";
 
 type Props = {
   canUndo: boolean;
@@ -9,11 +11,13 @@ type Props = {
   fitView: boolean;
   showColorCode: boolean;
   selectedColor: BeadColor | undefined;
+  toolMode: EditorToolMode;
   onUndo: () => void;
   onRedo: () => void;
   onZoomChange: (zoom: number) => void;
   onFitViewChange: (fit: boolean) => void;
   onShowColorCodeChange: (show: boolean) => void;
+  onToolModeChange: (mode: EditorToolMode) => void;
 };
 
 export function EditorToolbar(props: Props) {
@@ -56,6 +60,15 @@ export function EditorToolbar(props: Props) {
         onClick={() => props.onShowColorCodeChange(!props.showColorCode)}
       >
         {props.showColorCode ? <Eye size={17} /> : <EyeOff size={17} />}
+      </ToolButton>
+      <ToolButton
+        title="吸管"
+        active={props.toolMode === "eyedropper"}
+        onClick={() =>
+          props.onToolModeChange(props.toolMode === "eyedropper" ? "brush" : "eyedropper")
+        }
+      >
+        <Pipette size={17} />
       </ToolButton>
 
       <div className="ml-auto flex min-w-0 items-center gap-2 rounded-xl bg-stone-100 px-3 py-2 dark:bg-stone-700">
