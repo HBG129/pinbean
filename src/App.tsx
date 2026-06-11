@@ -43,6 +43,11 @@ import {
   type ImageInfo,
   type SizePreset,
 } from "./lib/editorSizing";
+import {
+  COLOR_COMPLEXITY_LIMITS,
+  reduceGridColors,
+  type ColorComplexity,
+} from "./lib/colorReduction";
 
 type Page = "editor" | "community" | "profile";
 
@@ -60,6 +65,7 @@ function AppShell() {
   const [imageInfo, setImageInfo] = useState<ImageInfo | null>(null);
   const [sizePreset, setSizePreset] = useState<SizePreset>("medium");
   const [lockAspectRatio, setLockAspectRatio] = useState(true);
+  const [colorComplexity, setColorComplexity] = useState<ColorComplexity>("balanced");
   const [imageSizeText, setImageSizeText] = useState("");
   const [selectedColorId, setSelectedColorId] = useState(() => getActivePalette()[0]?.id || beadColors221[0].id);
   const [replaceFrom, setReplaceFrom] = useState("");
@@ -102,8 +108,13 @@ function AppShell() {
       const sw = Math.max(1, Math.min(width, 300));
       const sh = Math.max(1, Math.min(height, 300));
       const result = await imageToBeadGrid({ file, width: sw, height: sh, colors: palette });
+      const reduced = reduceGridColors(
+        result,
+        palette,
+        COLOR_COMPLEXITY_LIMITS[colorComplexity]
+      );
       setWidth(sw); setHeight(sh);
-      gridState.reset(result);
+      gridState.reset(reduced);
       setFitView(true);
     } finally { setLoading(false); }
   }
@@ -204,12 +215,14 @@ function AppShell() {
 
   const sidebarProps: SidebarContentProps = {
     file, previewUrl, width, height, imageInfo, sizePreset, lockAspectRatio,
+    colorComplexity,
     loading, imageSizeText, palette,
     usingCustomPalette, selectedColorId, replaceFrom, replaceTo,
     stats, grid, projectTitle, projects,
     gridState: { undo: gridState.undo, redo: gridState.redo, canUndo: gridState.canUndo, canRedo: gridState.canRedo },
     onFileChange: handleFileChange, onWidthChange: handleWidthChange, onHeightChange: handleHeightChange,
     onSizePresetChange: handleSizePresetChange, onLockAspectRatioChange: setLockAspectRatio,
+    onColorComplexityChange: setColorComplexity,
     onGenerate: handleGenerate, onSelectedColorChange: setSelectedColorId,
     onReplaceFromChange: setReplaceFrom, onReplaceToChange: setReplaceTo,
     onReplaceColor: () => { if (grid && replaceFrom && replaceTo) gridState.set(replaceColorInGrid(grid, replaceFrom, replaceTo)); },

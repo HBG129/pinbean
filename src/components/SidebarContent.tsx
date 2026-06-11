@@ -1,6 +1,7 @@
 import { Undo2, Redo2, Save, Trash2, FolderOpen } from "lucide-react";
 import type { BeadColor, BeadGrid, ColorStat } from "../types/bead";
 import type { LocalProject } from "../lib/localProjects";
+import type { ColorComplexity } from "../lib/colorReduction";
 import type { ImageInfo, SizePreset } from "../lib/editorSizing";
 import { UploadPanel } from "./UploadPanel";
 import { ColorReplacePanel } from "./ColorReplacePanel";
@@ -13,6 +14,7 @@ export type SidebarContentProps = {
   imageInfo: ImageInfo | null;
   sizePreset: SizePreset;
   lockAspectRatio: boolean;
+  colorComplexity: ColorComplexity;
   loading: boolean;
   imageSizeText: string;
   palette: BeadColor[];
@@ -35,6 +37,7 @@ export type SidebarContentProps = {
   onHeightChange: (h: number) => void;
   onSizePresetChange: (preset: SizePreset) => void;
   onLockAspectRatioChange: (locked: boolean) => void;
+  onColorComplexityChange: (complexity: ColorComplexity) => void;
   onGenerate: () => void;
   onSelectedColorChange: (id: string) => void;
   onReplaceFromChange: (id: string) => void;
@@ -51,11 +54,12 @@ export type SidebarContentProps = {
 
 export function SidebarContent({
   file, previewUrl, width, height, imageInfo, sizePreset, lockAspectRatio,
+  colorComplexity,
   loading, imageSizeText, palette,
   usingCustomPalette, selectedColorId, replaceFrom, replaceTo,
   stats, grid, projectTitle, projects, gridState,
   onFileChange, onWidthChange, onHeightChange, onSizePresetChange,
-  onLockAspectRatioChange, onGenerate,
+  onLockAspectRatioChange, onColorComplexityChange, onGenerate,
   onSelectedColorChange, onReplaceFromChange, onReplaceToChange,
   onReplaceColor, onPaletteCsvChange, onResetPalette,
   onSaveProject, onOpenProject, onDeleteProject, onProjectTitleChange,
@@ -71,6 +75,7 @@ export function SidebarContent({
         imageInfo={imageInfo}
         sizePreset={sizePreset}
         lockAspectRatio={lockAspectRatio}
+        colorComplexity={colorComplexity}
         loading={loading}
         imageSizeText={imageSizeText}
         palette={palette}
@@ -79,6 +84,7 @@ export function SidebarContent({
         onHeightChange={onHeightChange}
         onSizePresetChange={onSizePresetChange}
         onLockAspectRatioChange={onLockAspectRatioChange}
+        onColorComplexityChange={onColorComplexityChange}
         onGenerate={onGenerate}
       />
 

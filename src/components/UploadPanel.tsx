@@ -1,5 +1,6 @@
 import { ImagePlus, RefreshCw } from "lucide-react";
 import type { BeadColor } from "../types/bead";
+import type { ColorComplexity } from "../lib/colorReduction";
 import type { ImageInfo, SizePreset } from "../lib/editorSizing";
 import { GenerationSummary } from "./GenerationSummary";
 import { SizePresetControl } from "./SizePresetControl";
@@ -12,6 +13,7 @@ export type UploadPanelProps = {
   imageInfo: ImageInfo | null;
   sizePreset: SizePreset;
   lockAspectRatio: boolean;
+  colorComplexity: ColorComplexity;
   loading: boolean;
   imageSizeText: string;
   palette: BeadColor[];
@@ -20,6 +22,7 @@ export type UploadPanelProps = {
   onHeightChange: (height: number) => void;
   onSizePresetChange: (preset: SizePreset) => void;
   onLockAspectRatioChange: (locked: boolean) => void;
+  onColorComplexityChange: (complexity: ColorComplexity) => void;
   onGenerate: () => void;
 };
 
@@ -31,6 +34,7 @@ export function UploadPanel({
   imageInfo,
   sizePreset,
   lockAspectRatio,
+  colorComplexity,
   loading,
   imageSizeText,
   palette,
@@ -39,6 +43,7 @@ export function UploadPanel({
   onHeightChange,
   onSizePresetChange,
   onLockAspectRatioChange,
+  onColorComplexityChange,
   onGenerate,
 }: UploadPanelProps) {
   return (
@@ -89,6 +94,26 @@ export function UploadPanel({
           onHeightChange={onHeightChange}
           onLockedChange={onLockAspectRatioChange}
         />
+        <div className="rounded-2xl bg-stone-100 p-1 dark:bg-stone-700">
+          {[
+            { key: "simple", label: "简化" },
+            { key: "balanced", label: "平衡" },
+            { key: "detailed", label: "精细" },
+          ].map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => onColorComplexityChange(item.key as ColorComplexity)}
+              className={`w-1/3 rounded-xl px-3 py-2 text-xs font-black transition ${
+                colorComplexity === item.key
+                  ? "bg-white text-stone-900 shadow dark:bg-stone-600 dark:text-stone-100"
+                  : "text-stone-500"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="hidden">
