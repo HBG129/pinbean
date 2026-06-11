@@ -4,6 +4,10 @@ PinBean 是一个面向拼豆爱好者的在线拼豆图制作工具。它可以
 
 项目支持 Perler / Hama / Artkal 等拼豆创作流程，适合用来规划手工拼豆、整理用量清单，以及分享自己的作品。
 
+## 在线体验
+
+[https://pinbean.pages.dev](https://pinbean.pages.dev)
+
 ## 功能亮点
 
 - **图片转拼豆图**：上传 PNG / JPEG / WebP 图片，自动按比例推荐网格尺寸。
@@ -55,6 +59,30 @@ npm run dev       # 启动开发服务器
 npm run build     # TypeScript 检查并构建生产包
 npm run lint      # 运行 ESLint
 npm run preview   # 预览生产构建
+```
+
+## Cloudflare Pages 部署
+
+项目已部署在 Cloudflare Pages：
+
+```text
+https://pinbean.pages.dev
+```
+
+Cloudflare Pages 推荐配置：
+
+| 配置项 | 值 |
+| --- | --- |
+| Framework preset | Vite |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Root directory | `/` |
+
+如果需要启用 Supabase 云端能力，请在 Cloudflare Pages 的环境变量中配置：
+
+```env
+VITE_SUPABASE_URL=your-supabase-url
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
 ## Supabase 配置
