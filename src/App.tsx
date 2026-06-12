@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState, useEffect } from "react";
+import { lazy, Suspense, useMemo, useState, useEffect, useRef } from "react";
 import { Sun, Moon, Menu, X, User, Home, Globe, Save } from "lucide-react";
 import { beadColors221 } from "./data/beadColors221";
 import { sampleImages, sampleToFile } from "./data/sampleImages";
@@ -8,7 +8,6 @@ import {
   getColorStats,
   imageToBeadGrid,
   replaceColorInGrid,
-  updateSingleCell,
 } from "./lib/imageToBeads";
 import { useHistoryState } from "./hooks/useHistoryState";
 import {
@@ -98,6 +97,7 @@ function AppShell() {
   const [fitView, setFitView] = useState(true);
   const [showColorCode, setShowColorCode] = useState(false);
   const [toolMode, setToolMode] = useState<EditorToolMode>("brush");
+  const [draftGrid, setDraftGrid] = useState<BeadGrid | null>(null);
   const [projectTitle, setProjectTitle] = useState("我的拼豆作品");
   const [projects, setProjects] = useState<LocalProject[]>(() => getLocalProjects());
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -106,6 +106,11 @@ function AppShell() {
   const { dark, toggle: toggleDark } = useDarkMode();
   const { toasts, showToast } = useToasts();
   const grid = gridState.value;
+  const activeGrid = draftGrid ?? grid;
+  const drawingGridRef = useRef<BeadGrid | null>(null);
+  const drawingChangedRef = useRef(false);
+  const drawingColorIdRef = useRef(selectedColorId);
+  const paintedCellIndicesRef = useRef<Set<number>>(new Set());
 
   // poll unread count
   useEffect(() => {
@@ -119,13 +124,13 @@ function AppShell() {
 
   const colorMap = useMemo(() => new Map(palette.map((c) => [c.id, c])), [palette]);
   const selectedColor = colorMap.get(selectedColorId);
-  const stats = useMemo(() => (grid ? getColorStats(grid, palette) : []), [grid, palette]);
+  const stats = useMemo(() => (activeGrid ? getColorStats(activeGrid, palette) : []), [activeGrid, palette]);
   const displayCellSize = useMemo(() => {
-    if (!grid) return zoom;
+    if (!activeGrid) return zoom;
     if (!fitView) return zoom;
     const maxWidth = 900, maxHeight = 620;
-    return Math.max(3, Math.min(14, Math.floor(maxWidth / grid.width), Math.floor(maxHeight / grid.height)));
-  }, [fitView, grid, zoom]);
+    return Math.max(3, Math.min(14, Math.floor(maxWidth / activeGrid.width), Math.floor(maxHeight / activeGrid.height)));
+  }, [fitView, activeGrid, zoom]);
 
   async function handleGenerate() {
     if (!file || !imageInfo) return;
@@ -268,24 +273,67 @@ function AppShell() {
     }
   }
 
-  function handleCanvasCellClick(index: number) {
+  function pickCellColor(index: number) {
     if (!grid) return;
 
-    if (toolMode === "eyedropper") {
-      const colorId = grid.cells[index];
-      if (!colorId || colorId === EMPTY_CELL_ID) {
-        showToast("error", "空白格没有可吸取的颜色");
-        return;
-      }
-
-      const color = colorMap.get(colorId);
-      setSelectedColorId(colorId);
-      setToolMode("brush");
-      showToast("success", `已吸取颜色：${color?.code ?? colorId}`);
+    const colorId = grid.cells[index];
+    if (!colorId || colorId === EMPTY_CELL_ID) {
+      showToast("error", "空白格没有可吸取的颜色");
       return;
     }
 
-    gridState.set(updateSingleCell(grid, index, selectedColorId));
+    const color = colorMap.get(colorId);
+    setSelectedColorId(colorId);
+    setToolMode("brush");
+    showToast("success", `已吸取颜色：${color?.code ?? colorId}`);
+  }
+
+  function paintDraftCell(index: number, colorId: string) {
+    const currentGrid = drawingGridRef.current;
+    if (!currentGrid || index < 0 || index >= currentGrid.cells.length) return;
+    if (paintedCellIndicesRef.current.has(index)) return;
+
+    paintedCellIndicesRef.current.add(index);
+    if (currentGrid.cells[index] === colorId) return;
+
+    const cells = [...currentGrid.cells];
+    cells[index] = colorId;
+    const nextGrid = { ...currentGrid, cells };
+    drawingGridRef.current = nextGrid;
+    drawingChangedRef.current = true;
+    setDraftGrid(nextGrid);
+  }
+
+  function handleCellPointerDown(index: number) {
+    if (!grid) return;
+
+    if (toolMode === "eyedropper") {
+      pickCellColor(index);
+      return;
+    }
+
+    drawingGridRef.current = grid;
+    drawingChangedRef.current = false;
+    drawingColorIdRef.current = selectedColorId;
+    paintedCellIndicesRef.current = new Set();
+    paintDraftCell(index, selectedColorId);
+  }
+
+  function handleCellPointerMove(index: number) {
+    if (!drawingGridRef.current) return;
+    paintDraftCell(index, drawingColorIdRef.current);
+  }
+
+  function handleCellPointerUp() {
+    const finalGrid = drawingGridRef.current;
+    if (finalGrid && drawingChangedRef.current) {
+      gridState.set(finalGrid);
+    }
+
+    drawingGridRef.current = null;
+    drawingChangedRef.current = false;
+    paintedCellIndicesRef.current = new Set();
+    setDraftGrid(null);
   }
 
   const sidebarProps: SidebarContentProps = {
@@ -458,7 +506,7 @@ function AppShell() {
 
             <section className="space-y-5 order-first xl:order-none">
               {/* Publish to community button */}
-              {hasSupabase() && grid && (
+              {hasSupabase() && activeGrid && (
                 <div className="flex justify-end">
                   <button
                     onClick={() => setPublishOpen(true)}
@@ -487,22 +535,24 @@ function AppShell() {
                 onToolModeChange={setToolMode}
               />
               <BeadCanvas
-                grid={grid} palette={palette} colorMap={colorMap}
+                grid={activeGrid} palette={palette} colorMap={colorMap}
                 displayCellSize={displayCellSize} showColorCode={showColorCode} fitView={fitView}
-                onCellClick={handleCanvasCellClick}
+                onCellPointerDown={handleCellPointerDown}
+                onCellPointerMove={handleCellPointerMove}
+                onCellPointerUp={handleCellPointerUp}
                 onToggleColorCode={() => setShowColorCode((v) => !v)}
                 onFitView={() => setFitView(true)}
                 onZoomIn={() => { setFitView(false); setZoom((v) => Math.min(32, v + 1)); }}
                 onZoomOut={() => { setFitView(false); setZoom((v) => Math.max(3, v - 1)); }}
               />
               <ColorStatsPanel
-                grid={grid}
+                grid={activeGrid}
                 stats={stats}
                 selectedColorId={selectedColorId}
                 onSelectedColorChange={setSelectedColorId}
               />
               <ExportPanel
-                grid={grid}
+                grid={activeGrid}
                 palette={palette}
                 stats={stats}
                 projectTitle={projectTitle}

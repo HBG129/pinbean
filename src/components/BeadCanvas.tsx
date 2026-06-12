@@ -1,4 +1,5 @@
 import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { useCallback, useRef, type PointerEvent } from "react";
 import type { BeadColor, BeadGrid } from "../types/bead";
 import { exportBeadGridPng } from "../lib/exportPng";
 import { EMPTY_CELL_ID } from "../lib/imageToBeads";
@@ -11,7 +12,9 @@ export type BeadCanvasProps = {
   displayCellSize: number;
   showColorCode: boolean;
   fitView: boolean;
-  onCellClick: (index: number) => void;
+  onCellPointerDown: (index: number) => void;
+  onCellPointerMove: (index: number) => void;
+  onCellPointerUp: () => void;
   onToggleColorCode: () => void;
   onFitView: () => void;
   onZoomIn: () => void;
@@ -34,12 +37,86 @@ export function BeadCanvas({
   displayCellSize,
   showColorCode,
   fitView,
-  onCellClick,
+  onCellPointerDown,
+  onCellPointerMove,
+  onCellPointerUp,
   onToggleColorCode,
   onFitView,
   onZoomIn,
   onZoomOut,
 }: BeadCanvasProps) {
+  const domGridRef = useRef<HTMLDivElement>(null);
+  const activePointerIdRef = useRef<number | null>(null);
+  const lastPointerIndexRef = useRef<number | null>(null);
+
+  const getDomCellIndex = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!grid) return null;
+      const gridEl = domGridRef.current;
+      if (!gridEl) return null;
+
+      const rect = gridEl.getBoundingClientRect();
+      if (
+        rect.width === 0 ||
+        rect.height === 0 ||
+        clientX < rect.left ||
+        clientX > rect.right ||
+        clientY < rect.top ||
+        clientY > rect.bottom
+      ) {
+        return null;
+      }
+
+      const col = Math.floor(((clientX - rect.left) / rect.width) * grid.width);
+      const row = Math.floor(((clientY - rect.top) / rect.height) * grid.height);
+      if (col < 0 || col >= grid.width || row < 0 || row >= grid.height) return null;
+      return row * grid.width + col;
+    },
+    [grid]
+  );
+
+  const handleDomPointerDown = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      const index = getDomCellIndex(event.clientX, event.clientY);
+      if (index === null) return;
+
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      activePointerIdRef.current = event.pointerId;
+      lastPointerIndexRef.current = index;
+      onCellPointerDown(index);
+    },
+    [getDomCellIndex, onCellPointerDown]
+  );
+
+  const handleDomPointerMove = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (activePointerIdRef.current !== event.pointerId) return;
+      const index = getDomCellIndex(event.clientX, event.clientY);
+      if (index === null || index === lastPointerIndexRef.current) return;
+
+      event.preventDefault();
+      lastPointerIndexRef.current = index;
+      onCellPointerMove(index);
+    },
+    [getDomCellIndex, onCellPointerMove]
+  );
+
+  const handleDomPointerEnd = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (activePointerIdRef.current !== event.pointerId) return;
+
+      event.preventDefault();
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      activePointerIdRef.current = null;
+      lastPointerIndexRef.current = null;
+      onCellPointerUp();
+    },
+    [onCellPointerUp]
+  );
+
   return (
     <section className="rounded-3xl bg-white p-5 shadow-sm dark:bg-stone-800 dark:shadow-none dark:ring-1 dark:ring-stone-700">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -120,15 +197,25 @@ export function BeadCanvas({
             colorMap={colorMap}
             cellSize={displayCellSize}
             showColorCode={showColorCode}
-            onCellClick={onCellClick}
+            onCellPointerDown={onCellPointerDown}
+            onCellPointerMove={onCellPointerMove}
+            onCellPointerUp={onCellPointerUp}
           />
         </div>
       ) : (
         /* ---- small grid: DOM ---- */
         <div className="flex h-[680px] items-center justify-center overflow-auto rounded-2xl bg-stone-50 p-4 dark:bg-stone-800/50">
           <div
+            ref={domGridRef}
+            onPointerDown={handleDomPointerDown}
+            onPointerMove={handleDomPointerMove}
+            onPointerUp={handleDomPointerEnd}
+            onPointerCancel={handleDomPointerEnd}
             className="grid w-fit overflow-hidden rounded-xl border border-stone-300 bg-white shadow-sm dark:border-stone-600 dark:bg-stone-800"
-            style={{ gridTemplateColumns: `repeat(${grid.width}, ${displayCellSize}px)` }}
+            style={{
+              gridTemplateColumns: `repeat(${grid.width}, ${displayCellSize}px)`,
+              touchAction: "none",
+            }}
           >
             {grid.cells.map((colorId, index) => {
               const color = colorMap.get(colorId);
@@ -136,7 +223,6 @@ export function BeadCanvas({
               return (
                 <button
                   key={index}
-                  onClick={() => onCellClick(index)}
                   title={empty ? "空白格" : color ? `${color.code} ${color.hex}` : colorId}
                   className="flex items-center justify-center overflow-hidden border border-black/5 font-black leading-none transition duration-150 hover:brightness-90 dark:border-white/10"
                   style={{

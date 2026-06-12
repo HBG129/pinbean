@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, type PointerEvent } from "react";
 import type { BeadColor, BeadGrid } from "../types/bead";
 import { EMPTY_CELL_ID } from "../lib/imageToBeads";
 
@@ -7,7 +7,9 @@ type CanvasGridProps = {
   colorMap: Map<string, BeadColor>;
   cellSize: number;
   showColorCode: boolean;
-  onCellClick: (index: number) => void;
+  onCellPointerDown: (index: number) => void;
+  onCellPointerMove: (index: number) => void;
+  onCellPointerUp: () => void;
 };
 
 function getReadableTextColor(hex: string) {
@@ -24,10 +26,14 @@ export function CanvasGrid({
   colorMap,
   cellSize,
   showColorCode,
-  onCellClick,
+  onCellPointerDown,
+  onCellPointerMove,
+  onCellPointerUp,
 }: CanvasGridProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const activePointerIdRef = useRef<number | null>(null);
+  const lastPointerIndexRef = useRef<number | null>(null);
 
   const canvasWidth = grid.width * cellSize;
   const canvasHeight = grid.height * cellSize;
@@ -89,35 +95,91 @@ export function CanvasGrid({
   }, [paint]);
 
   /* ---- click → cell index ---- */
-  const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const getCellIndex = useCallback(
+    (clientX: number, clientY: number) => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) return null;
 
       const rect = canvas.getBoundingClientRect();
+      if (
+        rect.width === 0 ||
+        rect.height === 0 ||
+        clientX < rect.left ||
+        clientX > rect.right ||
+        clientY < rect.top ||
+        clientY > rect.bottom
+      ) {
+        return null;
+      }
+
       const scaleX = canvasWidth / rect.width;
       const scaleY = canvasHeight / rect.height;
 
-      const mx = (e.clientX - rect.left) * scaleX;
-      const my = (e.clientY - rect.top) * scaleY;
+      const mx = (clientX - rect.left) * scaleX;
+      const my = (clientY - rect.top) * scaleY;
 
       const col = Math.floor(mx / cellSize);
       const row = Math.floor(my / cellSize);
 
-      if (col < 0 || col >= grid.width || row < 0 || row >= grid.height) return;
+      if (col < 0 || col >= grid.width || row < 0 || row >= grid.height) return null;
 
-      const index = row * grid.width + col;
-      onCellClick(index);
+      return row * grid.width + col;
     },
-    [grid.width, grid.height, cellSize, canvasWidth, canvasHeight, onCellClick]
+    [grid.width, grid.height, cellSize, canvasWidth, canvasHeight]
+  );
+
+  const handlePointerDown = useCallback(
+    (event: PointerEvent<HTMLCanvasElement>) => {
+      const index = getCellIndex(event.clientX, event.clientY);
+      if (index === null) return;
+
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      activePointerIdRef.current = event.pointerId;
+      lastPointerIndexRef.current = index;
+      onCellPointerDown(index);
+    },
+    [getCellIndex, onCellPointerDown]
+  );
+
+  const handlePointerMove = useCallback(
+    (event: PointerEvent<HTMLCanvasElement>) => {
+      if (activePointerIdRef.current !== event.pointerId) return;
+      const index = getCellIndex(event.clientX, event.clientY);
+      if (index === null || index === lastPointerIndexRef.current) return;
+
+      event.preventDefault();
+      lastPointerIndexRef.current = index;
+      onCellPointerMove(index);
+    },
+    [getCellIndex, onCellPointerMove]
+  );
+
+  const handlePointerEnd = useCallback(
+    (event: PointerEvent<HTMLCanvasElement>) => {
+      if (activePointerIdRef.current !== event.pointerId) return;
+
+      event.preventDefault();
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      activePointerIdRef.current = null;
+      lastPointerIndexRef.current = null;
+      onCellPointerUp();
+    },
+    [onCellPointerUp]
   );
 
   return (
     <div ref={containerRef} className="inline-block overflow-hidden rounded-xl border border-stone-300 bg-white shadow-sm">
       <canvas
         ref={canvasRef}
-        onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
         className="block cursor-crosshair"
+        style={{ touchAction: "none" }}
       />
     </div>
   );
